@@ -1,0 +1,41 @@
+UWORD chip sn1_sprite_data[2 * 1 * 16] = { /* Planes * Word Width * Height */
+    /* Plane 0 */
+    0x0000
+    ,0x0000
+    ,0x0000
+    ,0x0000
+    ,0x0000
+    ,0x0000
+    ,0x0000
+    ,0x0000
+    ,0x0000
+    ,0x0000
+    ,0x0000
+    ,0x0000
+    ,0x0000
+    ,0x0000
+    ,0x0000
+    ,0x0000
+    
+    /* Plane 1 */
+    ,0x03E0
+    ,0x0FF0
+    ,0x3FFC
+    ,0x3FFC
+    ,0x7FFE
+    ,0x7FFE
+    ,0xFFFF
+    ,0xFFFF
+    ,0xFFFF
+    ,0xFFFF
+    ,0x7FFF
+    ,0x7FFE
+    ,0x3FFC
+    ,0x3FFC
+    ,0x0FF0
+    ,0x03C0
+    
+};
+const UWORD sn1_sprite_planes = 2;
+const UWORD sn1_sprite_word_width = 1;
+const UWORD sn1_sprite_height = 16;

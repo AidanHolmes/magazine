@@ -1,0 +1,4 @@
+FROM LIB:c.o "makesprite.o"
+TO "MakeSprite"
+LIB /amigaui/ui.lib LIB:sc.lib LIB:amiga.lib
+

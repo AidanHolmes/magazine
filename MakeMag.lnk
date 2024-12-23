@@ -1,0 +1,4 @@
+FROM LIB:c.o "makemag.o"+"config.o"
+TO "MakeMag"
+LIB /amigaui/ui.lib LIB:sc.lib LIB:amiga.lib
+

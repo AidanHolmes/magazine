@@ -1,0 +1,17 @@
+[MAG AUTH="Aidan Holmes" TITLE="The new magazine"]
+[MAG COPYRIGHT=2024]
+{[PAGE NUMBER=1 REF=main FX=snowfall]
+	[IMAGE FILE=images/illusion.iff X=140 Y=20 NAME=pic1]
+	[TEXT X=140 Y=450 WIDTH=360 HEIGHT=60]
+	Text just appears without property tags. Initial whitespace ignored. 
+	Newlines processed as expected. If new TEXT property appears then text reprocessed in new IFF chunk.
+	[BUTTON NAME=next NAVTO=page1 X=40 Y=20 WIDTH=60 HEIGHT=25]
+	[BUTTON NAME=Exit ACTION=exit X=40 Y=55 WIDTH=60 HEIGHT=25]
+}
+
+{
+	[PAGE NUMBER=2 REF=page1]
+	[TEXT X=0 Y=0 WIDTH=100 HEIGHT=100]
+	Second page of text.
+	[BUTTON NAME=home NAVTO=main]
+}

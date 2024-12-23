@@ -1,0 +1,4 @@
+FROM LIB:c.o "magui.o"+"magdata.o"+"config.o"+"maggfx.o"+"magpages.o"+"mageffects.o"
+TO "Mag"
+LIB /amigaui/ui.lib LIB:sc.lib LIB:amiga.lib
+
