@@ -275,7 +275,7 @@ int main(int argc, char **argv)
 		}
 		// RTG really doesn't like double buffering so exclude this setup if RTG
 		if (!uidata.isRTG){
-			//initDoubleBuffer(&uidata);
+			initDoubleBuffer(&uidata);
 		}
 		if (createAppScreen(&myApp, TRUE, TRUE, prefScreenTags) != 0){
 			goto exitcleanup;
