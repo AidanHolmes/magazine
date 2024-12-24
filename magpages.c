@@ -493,6 +493,14 @@ void uiClearPage(struct MagUIData *uidata)
 	// Stop any intuiticks unless needed
 	magUnregisterAllTicks(uidata);
 	
+	if (uidata->dbufBitmaps && uidata->appWnd->appWindow){
+		uidata->dbufActive = 0;
+		uidata->appWnd->appWindow->WScreen->ViewPort.RasInfo->BitMap = &uidata->dbufBitmaps[uidata->dbufActive];
+		uidata->appWnd->appWindow->RPort->BitMap = &uidata->dbufBitmaps[uidata->dbufActive];
+		MakeScreen(uidata->appWnd->appWindow->WScreen);
+		RethinkDisplay();
+	}
+	
 	// Clear any previous setup GELs/Bobs
 	removeBobs(uidata->appWnd, &uidata->gels);
 	
@@ -514,9 +522,5 @@ void uiClearPage(struct MagUIData *uidata)
 					0,0, 
 					uidata->appWnd->appWindow->Width, 
 					uidata->appWnd->appWindow->Height);
-	}
-	if (uidata->dbufBitmaps){
-		BltBitMap(&uidata->dbufBitmaps[uidata->dbufActive], 0, 0, 
-					&uidata->dbufBitmaps[uidata->dbufActive ^ 1], 0,0,640,512,0xC0,0xFF,0);
 	}
 }

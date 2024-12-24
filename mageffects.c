@@ -138,7 +138,10 @@ static void _effectsSetupSnow(struct MagUIData *uidata)
 			
 		}
 		magVs[i].sprite.PlanePick = 0; // hide until needed
-		createBob(uidata->appWnd, &uidata->gels, &magVs[i].sprite,uidata->maxDepth,uidata->dbufBitmaps?TRUE:FALSE);
+		if (!createBob(uidata->appWnd, &uidata->gels, &magVs[i].sprite,uidata->maxDepth,uidata->dbufBitmaps?TRUE:FALSE)){
+			removeBobs(uidata->appWnd, &uidata->gels);
+			return;
+		}
 	}
 	if (uidata->dbufBitmaps){
 		BltBitMap(&uidata->dbufBitmaps[uidata->dbufActive], 0, 0, 
