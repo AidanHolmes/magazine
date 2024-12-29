@@ -9,6 +9,7 @@
 #include "maggfx.h"
 #include "magui.h"
 #include "magpages.h"
+#include "mageffects.h"
 
 #define APP_WIDTH 640
 #define APP_HEIGHT 512
@@ -320,6 +321,10 @@ int main(int argc, char **argv)
 		goto exitcleanup;
 	}
 	
+	if (!initModMusic(&uidata)){
+		goto exitcleanup;
+	}
+	
 	if (!emptyProject){
 		loadProject(&uidata);
 	}
@@ -329,6 +334,7 @@ int main(int argc, char **argv)
 	
 exitcleanup:
 	// App closing - clean up from here and exit
+	cleanupModMusic(&uidata);
 	if (uidata.originalWBColours){
 		setViewPortColorTable(&myApp.appScreen->ViewPort, uidata.originalWBColours, uidata.maxDepth);
 		RemakeDisplay();

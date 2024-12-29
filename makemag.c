@@ -65,14 +65,58 @@ FILE* loadParameters(char **szIFF, int argc, char **argv)
 	return f ;
 }
 
-/*
-UWORD magcallback(struct MagObject *obj)
+BOOL addMusicToCatalogue(struct IFFnode *cat, struct MagParameter *param)
 {
+	// Reads the config parameter, opens the file and adds the MOD to the CAT MODS.
+	FILE *f = NULL;
+	struct MagValue *val = NULL ;
+	BOOL bRet = FALSE ;
+	struct IFFnode *n = NULL, *form = NULL;
 	
-	return 0;
+	if ((val=findValue("FILE", param))){
+		if (!(f=fopen(val->szValue,"rb"))){
+			// Cannot open this file
+			printf("Cannot open music file %s\n", val->szValue);
+			return FALSE ;
+		}
+	}else{
+		printf("Music parameter has no FILE attribute. Aborting this reference\n");
+		return FALSE ;
+	}
+	
+	// Create new FORM for the mod music file. Copy all the content
+	if (!(form=createIFFForm(cat, "MODS"))){
+		printf("Error, cannot create new FORM in MODS\n");
+		goto tidyup ;
+	}
+	
+	if (!(n = createIFFChunk(form, "NAME"))){
+		printf("Failed to create NAME chunk in new music FORM\n");
+		goto tidyup;
+	}
+	n->bufContent = val->szValue;
+	n->dataLength = strlen(val->szValue) +1; // add terminator
+	
+	if (!(n = createIFFChunk(form, "CSEQ"))){
+		printf("Failed to create CSEQ chunk in new music FORM\n");
+		goto tidyup;
+	}
+	n->fContent = f; // only need to set this value if it is the whole file
+	
+	bRet = TRUE;
+tidyup:
+	if (!bRet){
+		if (f){
+			fclose(f);
+		}
+		if (form){
+			// remove failed form (if created).
+			deleteIFFNode(form);
+		}
+	}
+	return bRet;
 }
-*/
-
+	
 BOOL addImageToList(struct IFFnode *list, struct IFFnode *prop, struct MagParameter *param)
 {
 	// Reads the config parameter, opens the file and adds the CMAP to the LIST PROP if 
@@ -194,7 +238,7 @@ tidyup:
 
 struct IFFnode* createMag(struct MagConfig *config, char *szIFF)
 {
-	struct IFFnode *root = NULL, *prop = NULL, *propilbm = NULL, *n=NULL, *listilbm = NULL, *form = NULL;
+	struct IFFnode *root = NULL, *prop = NULL, *propilbm = NULL, *n=NULL, *listilbm = NULL, *form = NULL, *modcat = NULL;
 	BOOL error = TRUE ;
 	struct MagParameter *param = NULL ;
 	struct MagSection *thisSection = NULL ;
@@ -270,6 +314,21 @@ struct IFFnode* createMag(struct MagConfig *config, char *szIFF)
 			// These images need taking apart and reassembling into this MAG IFF format
 			// CMAPS to be stripped and custom chunks added where required
 			addImageToList(listilbm, propilbm, param);
+		}
+		
+		// If there is any music specified, then create a catalogue section and add
+		// all music to the catalogue.
+		if (findParam("MUSIC", thisSection, NULL)){
+			if (!(modcat=createIFFCatalogue(form, "MODS"))){
+				printf("Error creating MODS CAT for new page\n");
+				goto end;
+			}
+			
+			// Extract all music mods
+			for (param = findParam("MUSIC", thisSection, NULL); param; param = findParam("MUSIC", thisSection, (struct MagObject*)param)){
+				// This adds a mod file as-is to the IFF. 
+				addMusicToCatalogue(modcat, param);
+			}
 		}
 
 		if (!(n=createIFFChunk(form,"CONF"))){

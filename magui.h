@@ -45,6 +45,11 @@ struct MagUIData
 	magTickCallback tick_fn[MAG_MAX_TICK_CALLBACK];
 	struct BitMap *dbufBitmaps;
 	UBYTE dbufActive;
+	struct IFFMod *activeMod;
+	UBYTE *modBuffer;
+	UWORD modLoopCount;
+	BOOL modStopOnExit;
+	BOOL modHasInit;
 };
 
 BOOL magRegisterTick(struct MagUIData *uidata, magTickCallback fn);

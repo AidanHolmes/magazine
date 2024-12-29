@@ -9,6 +9,7 @@
 #include "snow1.h"
 #include <proto/timer.h>
 #include <devices/timer.h>
+#include <exec/memory.h>
 
 #define MAGMAXSPRITES 10
 
@@ -37,11 +38,113 @@ BOOL effectsInit(struct MagUIData *uidata, char *szEffect)
 	return FALSE;
 }
 
+void stopModMusic(struct MagUIData *uidata)
+{
+	void *base = (void*)0xdff000;
+	if (!uidata){
+		return;
+	}
+	mt_Enable = 0;
+	if (uidata->activeMod){
+		mt_end(base);
+	}
+	if (uidata->modBuffer){
+		FreeVec(uidata->modBuffer);
+		uidata->modBuffer=NULL;
+	}
+	uidata->activeMod = NULL;
+}
+
+BOOL restartModMusic(struct MagUIData *uidata)
+{
+	void *base = (void*)0xdff000;
+	if (!uidata || !uidata->activeMod){
+		return FALSE;
+	}
+	
+	mt_init(base, uidata->modBuffer, NULL, 0);
+	mt_Enable = 1;
+	
+	return TRUE;
+}
+
+BOOL startModMusic(struct MagUIData *uidata, struct IFFMod *mod)
+{
+	void *base = (void*)0xdff000;
+	
+	if (!uidata || !mod){
+		return FALSE;
+	}
+	uidata->activeMod = NULL;
+	
+	// Seek to start of mod music data
+	fseek(uidata->data.ctx.f, mod->sequenceData.offset, SEEK_SET);
+	// Allocate memory in chip ram for the music
+	uidata->modBuffer = AllocVec(mod->sequenceData.length, MEMF_CHIP);
+	if (!uidata->modBuffer){
+		return FALSE ;
+	}
+	if (!fread(uidata->modBuffer, mod->sequenceData.length, 1, uidata->data.ctx.f)){
+		return FALSE ;
+	}
+	
+	// set the active mod name as flag and reference of mod playing
+	uidata->activeMod = mod;
+	
+	mt_init(base, uidata->modBuffer, NULL, 0);
+	mt_Enable = 1;
+	
+	return TRUE ;
+}
+
+BOOL initModMusic(struct MagUIData *uidata)
+{
+	if (!uidata){
+		return FALSE ;
+	}
+	if (!mt_install()){
+		return FALSE;
+	}
+	uidata->activeMod = NULL ;
+	uidata->modHasInit = TRUE ;
+	return TRUE;
+}
+
+void cleanupModMusic(struct MagUIData *uidata)
+{
+	if (uidata){
+		stopModMusic(uidata);
+		if (uidata->modHasInit){
+			mt_remove();
+		}
+	}
+}
+
 __inline LONG magRand(LONG min, LONG max)
 {
 	LONG range = max - min;
 	
 	return (rand()/(RAND_MAX/range)) + min;
+}
+
+void musicTickEvent(struct MagUIData *uidata)
+{
+	if (uidata->activeMod){
+		// Music is playing
+		if (mt_SongEnd){ // Music playing has ended
+			stopModMusic(uidata);
+			if (uidata->modLoopCount == 1){
+				// This was the last play, stop music
+				stopModMusic(uidata);
+			}else{
+				// repeat
+				restartModMusic(uidata);
+			}
+			if (uidata->modLoopCount > 0){
+				uidata->modLoopCount--;
+			}
+		}
+	}
 }
 
 static void _snowTickEvent(struct MagUIData *uidata)

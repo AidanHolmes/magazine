@@ -25,11 +25,21 @@ struct MagPage
 	struct MagColour highlight;
 	
 };
+struct IFFMod;
+
+struct IFFMod
+{
+	struct IFFMod *next;
+	char szName[MAG_MAX_PARAMETER_VALUE];
+	struct IFFChunkData sequenceData;
+};
 
 struct IFFMagazineData
 {
 	struct IFFctx ctx;		// Entire IFF image
 	UWORD pageCount;
+	UWORD modCount;
+	struct IFFMod *mods;
 	struct MagPage *pages;
 };
 
@@ -60,5 +70,8 @@ struct MagPage *findPage(struct IFFMagazineData *iff, char *szName);
 
 // Find image associated with config value
 struct IFFmaggfx *findImage(struct MagPage *page, struct MagValue *imgName);
+
+// Find a music mod using the config name value
+struct IFFMod *findMod(struct IFFMagazineData *iff, struct MagValue *modName);
 
 #endif

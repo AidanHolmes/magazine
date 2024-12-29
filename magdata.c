@@ -50,10 +50,40 @@ struct IFFmaggfx *_createImage(struct MagPage *page)
 	return img;
 }
 
+struct IFFMod* _getLastMod(struct IFFMagazineData *iff)
+{
+	struct IFFMod *thisMod = NULL;
+	if (!iff->mods){
+		return NULL;
+	}
+	for(thisMod=iff->mods; thisMod->next; thisMod=thisMod->next);
+	
+	return thisMod;
+}
+
+static struct IFFMod *_createMod(struct IFFMagazineData *iff)
+{
+	struct IFFMod *mod = NULL, *attachTo = NULL;
+	mod = (struct IFFMod*)AllocVec(sizeof(struct IFFMod), MEMF_ANY | MEMF_CLEAR);
+
+	if (mod){
+		if (!iff->mods){
+			iff->mods = mod;
+		}else{
+			if (attachTo = _getLastMod(iff)){
+				attachTo->next = mod;
+			}
+		}
+	}
+	
+	return mod;
+}	
+
 UWORD _parseIFFMag_callback(struct IFFstack *stack, struct IFFctx *ctx, ULONG offset)
 {
 	struct IFFMagazineData *iff = NULL;
 	struct MagPage *thisPage = NULL ;
+	struct IFFMod *thisMod = NULL ;
 	struct IFFmaggfx *thisImg = NULL ;
 	void *to = NULL;
 	ULONG readSize = 0;
@@ -167,6 +197,32 @@ UWORD _parseIFFMag_callback(struct IFFstack *stack, struct IFFctx *ctx, ULONG of
 		}
 	}
 	
+	///////////////////////////////////////////////
+	//
+	// Read new music file
+	//
+	else if(CMP_HDR(stack->chunk_name, "FORM") && CMP_HDR(stack->chunk_id, "MODS")){
+		// Create a new image object
+		if (!(thisMod = _createMod(iff))){
+			return IFF_NORESOURCE_ERROR;
+		}
+		iff->modCount++;
+	// Check parent object is a FORM and MODS for the chunk
+	}else if(stack->parent && CMP_HDR(stack->parent->chunk_name, "FORM") && CMP_HDR(stack->parent->chunk_id, "MODS")){
+		if (CMP_HDR(stack->chunk_name, "NAME")){
+			if (thisMod = _getLastMod(iff)){
+				if ((fread(thisMod->szName, 1, stack->length, ctx->f)) != stack->length){
+					return IFF_STREAM_ERROR; // Cannot read
+				}
+			}
+		}else if(CMP_HDR(stack->chunk_name, "CSEQ")){
+			if (thisMod = _getLastMod(iff)){
+				thisMod->sequenceData.offset = offset;
+				thisMod->sequenceData.length = stack->length;
+			}
+		}
+	}
+	
 	return IFF_NO_ERROR;
 }
 
@@ -184,6 +240,7 @@ void initMagData(struct IFFMagazineData *iff)
 void cleanUpMagData(struct IFFMagazineData *iff)
 {
 	struct MagPage *page = NULL, *tmppage = NULL;
+	struct IFFMod *mod = NULL, *tmpmod = NULL;
 	struct IFFmaggfx *img = NULL, *tmpimg = NULL ;
 	
 	for(page=iff->pages;page;){
@@ -199,6 +256,11 @@ void cleanUpMagData(struct IFFMagazineData *iff)
 		magCleanup(&page->config);
 		FreeVec(page);
 		page = tmppage;
+	}
+	for (mod=iff->mods;mod;){
+		tmpmod = mod->next;
+		FreeVec(mod);
+		mod = tmpmod ;
 	}
 	iff->pages = NULL ;
 }
@@ -236,6 +298,22 @@ struct IFFmaggfx *findImage(struct MagPage *page, struct MagValue *imgName)
 	for (img=page->images; img; img=img->next){
 		if (magstricmp(img->szName, imgName->szValue, MAG_MAX_PARAMETER_VALUE)){
 			return img;
+		}
+	}
+	return NULL;
+}
+
+struct IFFMod *findMod(struct IFFMagazineData *iff, struct MagValue *modName)
+{
+	struct IFFMod *mod = NULL ;
+	
+	if (modName == NULL){
+		return NULL;
+	}
+	
+	for (mod=iff->mods; mod; mod=mod->next){
+		if (magstricmp(mod->szName, modName->szValue, MAG_MAX_PARAMETER_VALUE)){
+			return mod;
 		}
 	}
 	return NULL;

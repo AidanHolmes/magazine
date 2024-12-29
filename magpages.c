@@ -68,7 +68,6 @@ static BOOL _openPageImage(struct MagUIData *uidata, struct MagParameter *param,
 	UWORD x=0,y=0,w=0,h=0;
 	struct BitMap *bmpimg = NULL;
 	struct IFFRenderInfo ri;
-	struct ColHistogram* hist;
 	BOOL ret = FALSE ;
 	ULONG *colourTableGrey = NULL;
 	
@@ -270,6 +269,33 @@ cleanup:
 	return ret ;
 }
 
+static BOOL _openMusic(struct MagUIData *uidata, struct MagPage *page, struct MagParameter *param, struct IFFMod *mod)
+{
+	struct MagValue *val = NULL ;
+	
+	uidata->modLoopCount = 0;
+	uidata->modStopOnExit = TRUE ;
+	
+	if ((val=findValue("LOOP", param))){
+		uidata->modLoopCount = magatouw(val,0);
+	}
+	if ((val=findValue("ONEXIT", param))){
+		uidata->modStopOnExit = magstricmp("STOP", val->szValue, MAG_MAX_PARAMETER_VALUE) ;
+	}
+	
+	if (uidata->activeMod){
+		if (uidata->activeMod != mod){
+			stopModMusic(uidata) ;
+		}
+	}
+	
+	if (!uidata->activeMod){
+		startModMusic(uidata, mod);
+	}
+	
+	return TRUE ;
+}
+
 static BOOL _openButton(struct MagUIData *uidata, struct MagPage *page, struct MagParameter *param)
 {
 	struct MagValue *val = NULL ;
@@ -436,6 +462,7 @@ static void _setupPageColours(struct MagUIData *uidata, struct MagPage *page)
 BOOL uiOpenPage(struct MagUIData *uidata, char *szPageRef)
 {
 	struct MagPage *page = NULL;
+	struct IFFMod *mod = NULL ;
 	struct MagParameter *param = NULL ;
 	struct MagText *text = NULL ;
 	struct IFFmaggfx *img = NULL;
@@ -464,6 +491,17 @@ BOOL uiOpenPage(struct MagUIData *uidata, char *szPageRef)
 	// Setup all buttons
 	for (param = findParam("BUTTON", &page->config.topSection, NULL); param; param = findParam("BUTTON", &page->config.topSection, (struct MagObject*)param)){
 		_openButton(uidata,page, param);
+	}
+	
+	// Load in all sound/music
+	for (param = findParam("MUSIC", &page->config.topSection, NULL); param; param = findParam("MUSIC", &page->config.topSection, (struct MagObject*)param)){
+		if ((val=findValue("FILE", param))){
+			if (mod = findMod(&uidata->data, val)){
+				if (_openMusic(uidata, page, param, mod)){
+					magRegisterTick(uidata, musicTickEvent);
+				}
+			}
+		}
 	}
 	
 	// Setup all images
@@ -522,5 +560,14 @@ void uiClearPage(struct MagUIData *uidata)
 					0,0, 
 					uidata->appWnd->appWindow->Width, 
 					uidata->appWnd->appWindow->Height);
+	}
+	
+	// handle any music
+	if (uidata->activeMod){
+		if (uidata->modStopOnExit){
+			stopModMusic(uidata);
+		}else{
+			magRegisterTick(uidata, musicTickEvent);
+		}
 	}
 }
