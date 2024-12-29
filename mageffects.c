@@ -132,7 +132,6 @@ void musicTickEvent(struct MagUIData *uidata)
 	if (uidata->activeMod){
 		// Music is playing
 		if (mt_SongEnd){ // Music playing has ended
-			stopModMusic(uidata);
 			if (uidata->modLoopCount == 1){
 				// This was the last play, stop music
 				stopModMusic(uidata);
