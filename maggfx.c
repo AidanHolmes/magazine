@@ -420,16 +420,32 @@ ULONG *copyColourTable(ULONG *colourTable)
 	return copy;
 }
 
+#include <graphics/gfxbase.h>
+extern struct GfxBase *GfxBase;
+
 ULONG *viewPortColourTable(struct ViewPort *vp)
 {
 	ULONG *table = NULL ;
 	ULONG allocsize = sizeof(ULONG) * ((vp->ColorMap->Count*3)+2);
+	UWORD i=0, *table4 = NULL;
 
-	table = AllocVec(allocsize, MEMF_ANY);
-	if (table){
-		GetRGB32(vp->ColorMap, 0, vp->ColorMap->Count, table+1); // copy to offset of 1
-		table[0] = vp->ColorMap->Count << 16;
-		table[(vp->ColorMap->Count*3)+1] = 0; // Add terminator
+	if (GfxBase->LibNode.lib_Version >= 39){
+		table = AllocVec(allocsize, MEMF_ANY);
+		if (table){
+			GetRGB32(vp->ColorMap, 0, vp->ColorMap->Count, table+1); // copy to offset of 1
+			table[0] = vp->ColorMap->Count << 16;
+			table[(vp->ColorMap->Count*3)+1] = 0; // Add terminator
+		}
+	}else{
+		table4 = AllocVec(vp->ColorMap->Count + 2, MEMF_ANY);
+		if (table4){
+			table4[0] = vp->ColorMap->Count;
+			for(i=0;i<vp->ColorMap->Count;i++){
+				table4[i+1] = (UWORD)GetRGB4(vp->ColorMap, i);
+			}
+			table4[i+1] = 0;
+		}
+		return (ULONG*)table4;
 	}
 	return table;
 }

@@ -3,6 +3,7 @@
 {[PAGE NUMBER=1 REF=main FX=snowfall]
 	[IMAGE FILE=images/illusion.iff X=140 Y=20 NAME=pic1]
 	[TEXT X=140 Y=450 WIDTH=360 HEIGHT=60]
+	[MUSIC FILE=mods/mod.DJxmas LOOP=FOREVER ONEXIT=CONT]
 	Text just appears without property tags. Initial whitespace ignored. 
 	Newlines processed as expected. If new TEXT property appears then text reprocessed in new IFF chunk.
 	[BUTTON NAME=next NAVTO=page1 X=40 Y=20 WIDTH=60 HEIGHT=25]
@@ -11,6 +12,7 @@
 
 {
 	[PAGE NUMBER=2 REF=page1]
+	[MUSIC FILE=mods/mod.HappyNewYear LOOP=FOREVER ONEXIT=STOP]
 	[TEXT X=0 Y=0 WIDTH=100 HEIGHT=100]
 	Second page of text.
 	[BUTTON NAME=home NAVTO=main]
