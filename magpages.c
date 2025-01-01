@@ -8,6 +8,8 @@
 #include <exec/types.h>
 #include <intuition/gadgetclass.h>
 #include <exec/exec.h>
+#include <intuition/intuitionbase.h>
+#include <proto/graphics.h>
 
 #define CyberGfxBase uidata->CyberGfxBase
 
@@ -44,23 +46,39 @@ static void _btnNav(struct AppGadget *g, struct IntuiMessage *m)
 	}
 }
 
+__inline static void _setPageColour(struct MagUIData *uidata, ULONG *colourTable, UWORD index, UBYTE r, UBYTE g, UBYTE b)
+{
+	UWORD offsetindex = 0, *colourTable4 = NULL;
+	
+	if (uidata->appWnd->app->gfx->lib_Version >= 39){
+		offsetindex = (index * 3)+1;
+		colourTable[offsetindex++] = (r << 24) | 0xFFFFFF;
+		colourTable[offsetindex++] = (g << 24) | 0xFFFFFF;
+		colourTable[offsetindex++] = (b << 24) | 0xFFFFFF;
+	}else{
+		offsetindex = index+1;
+		colourTable4 = (UWORD*)colourTable;
+		colourTable4[offsetindex] = ((r & 0xF0) << 4) | (g & 0xF0) | ((b & 0xF0) >> 4);
+	}
+}
+
 static void _applyPageColours(struct MagUIData *uidata, ULONG *colourTable)
 {
-	colourTable[1] = (uidata->currentPage->bg.r << 24) | 0xFFFFFF;
-	colourTable[2] = (uidata->currentPage->bg.g << 24) | 0xFFFFFF;
-	colourTable[3] = (uidata->currentPage->bg.b << 24) | 0xFFFFFF;
-	
-	colourTable[4] = (uidata->currentPage->shadow.r << 24) | 0xFFFFFF;
-	colourTable[5] = (uidata->currentPage->shadow.g << 24) | 0xFFFFFF;
-	colourTable[6] = (uidata->currentPage->shadow.b << 24) | 0xFFFFFF;
-	
-	colourTable[7] = (uidata->currentPage->pen.r << 24) | 0xFFFFFF;
-	colourTable[8] = (uidata->currentPage->pen.g << 24) | 0xFFFFFF;
-	colourTable[9] = (uidata->currentPage->pen.b << 24) | 0xFFFFFF;
-	
-	colourTable[10] = (uidata->currentPage->highlight.r << 24) | 0xFFFFFF;
-	colourTable[11] = (uidata->currentPage->highlight.g << 24) | 0xFFFFFF;
-	colourTable[12] = (uidata->currentPage->highlight.b << 24) | 0xFFFFFF;
+	_setPageColour(uidata, colourTable, 0, uidata->currentPage->bg.r, 
+											uidata->currentPage->bg.g, 
+											uidata->currentPage->bg.b);
+											
+	_setPageColour(uidata, colourTable, 1, uidata->currentPage->shadow.r, 
+											uidata->currentPage->shadow.g, 
+											uidata->currentPage->shadow.b);
+											
+	_setPageColour(uidata, colourTable, 2, uidata->currentPage->pen.r, 
+											uidata->currentPage->pen.g, 
+											uidata->currentPage->pen.b);
+
+	_setPageColour(uidata, colourTable, 3, uidata->currentPage->highlight.r, 
+											uidata->currentPage->highlight.g, 
+											uidata->currentPage->highlight.b);
 }
 
 static BOOL _openPageImage(struct MagUIData *uidata, struct MagParameter *param, struct IFFmaggfx *img)
@@ -123,8 +141,7 @@ static BOOL _openPageImage(struct MagUIData *uidata, struct MagParameter *param,
 			goto cleanup;
 		}
 	}else{
-		//LoadRGB32(&uidata->appWnd->appWindow->WScreen->ViewPort, uidata->currentPage->colourTable);
-		setViewPortColorTable(&uidata->appWnd->appWindow->WScreen->ViewPort, uidata->currentPage->colourTable, uidata->maxDepth);
+		setViewPortColorTable(&uidata->data.ctx, &uidata->appWnd->appWindow->WScreen->ViewPort, uidata->currentPage->colourTable, uidata->maxDepth);
 		WaitBlit();
 		BltBitMapRastPort(bmpimg, 0, 0, uidata->appWnd->appWindow->RPort,
 					x,
@@ -138,7 +155,7 @@ static BOOL _openPageImage(struct MagUIData *uidata, struct MagParameter *param,
 	
 cleanup:
 	if (bmpimg){
-		freeBitMap(bmpimg);
+		freeBitMap(&uidata->data.ctx, bmpimg, &img->bitmaphdr);
 		bmpimg = NULL ;
 	}
 	if (ri.Memory){
@@ -411,7 +428,11 @@ static BOOL _convertStrToCol(struct MagColour *c, char *szColour)
 
 __inline void _setMagColour(struct MagUIData *uidata, struct MagColour *col, UBYTE index)
 {
-	SetRGB32(&uidata->appWnd->appWindow->WScreen->ViewPort, index, col->r << 24 | 0xFFFFFF,col->g << 24 | 0xFFFFFF,col->b << 24 | 0xFFFFFF);
+	if (uidata->appWnd->app->gfx->lib_Version >= 39){
+		SetRGB32(&uidata->appWnd->appWindow->WScreen->ViewPort, index, col->r << 24 | 0xFFFFFF,col->g << 24 | 0xFFFFFF,col->b << 24 | 0xFFFFFF);
+	}else{
+		SetRGB4(&uidata->appWnd->appWindow->WScreen->ViewPort, index, col->r, col->g, col->b);
+	}
 }
 
 static void _setupPageColours(struct MagUIData *uidata, struct MagPage *page)
@@ -478,7 +499,9 @@ BOOL uiOpenPage(struct MagUIData *uidata, char *szPageRef)
 			uidata->currentPage->colourTable = NULL;
 		}
 	}
-	SetWindowPointer(uidata->appWnd->appWindow, WA_BusyPointer, TRUE);
+	if (IntuitionBase->LibNode.lib_Version >=39){
+		SetWindowPointer(uidata->appWnd->appWindow, WA_BusyPointer, TRUE);
+	}
 	uidata->currentPage = page ;
 	_setupPageColours(uidata, page);
 	uiClearPage(uidata);
@@ -519,8 +542,9 @@ BOOL uiOpenPage(struct MagUIData *uidata, char *szPageRef)
 		}
 	}
 	
-	SetWindowPointer(uidata->appWnd->appWindow, WA_BusyPointer, FALSE);
-
+	if (IntuitionBase->LibNode.lib_Version >=39){
+		SetWindowPointer(uidata->appWnd->appWindow, WA_BusyPointer, FALSE);
+	}
 	return TRUE;
 }
 

@@ -168,7 +168,7 @@ static void _snowTickEvent(struct MagUIData *uidata)
 				magVs[i].virtualX = magVs[i].sprite.X * 1000;
 				magVs[i].virtualY = 0;
 				magVs[i].vectorX = magRand(-240,240);
-				magVs[i].vectorY = magRand(120,1200);
+				magVs[i].vectorY = magRand(240,1500);
 				magVs[i].lastActivity = now;
 			}else{
 				magVs[i].activeAt = now;

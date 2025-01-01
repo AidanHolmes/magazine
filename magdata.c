@@ -235,6 +235,7 @@ UWORD parseIFFMagazine(struct IFFMagazineData *iff, FILE *f)
 void initMagData(struct IFFMagazineData *iff)
 {
 	memset(iff, 0, sizeof(struct IFFMagazineData));
+	initialiseIFFCtx((struct IFFctx *)iff);
 }
 
 void cleanUpMagData(struct IFFMagazineData *iff)
@@ -263,6 +264,7 @@ void cleanUpMagData(struct IFFMagazineData *iff)
 		mod = tmpmod ;
 	}
 	iff->pages = NULL ;
+	closeIFFCtx((struct IFFctx*)iff);
 }
 
 struct MagPage *findPage(struct IFFMagazineData *iff, char *szName)

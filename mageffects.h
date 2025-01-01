@@ -1,6 +1,7 @@
 #ifndef ___H_MAGEFFECTS_
 #define ___H_MAGEFFECTS_
 #include "magui.h"
+#include <exec/initializers.h> // include prior to ptplayer.h to stop OFFSET macro clash
 #include "ptplayer.h"
 
 extern UBYTE mt_SongEnd; // not included in ptplayer header, but exportable from asm

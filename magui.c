@@ -14,7 +14,7 @@
 #define APP_WIDTH 640
 #define APP_HEIGHT 512
 
-const char __ver[] = "$VER: Mag Reader 1.0 (22.11.2024)";
+const char __ver[] = "$VER: Mag Reader 1.1 (30.12.2024)";
 
 static struct TextAttr _topaz8 = {
    (STRPTR)"topaz.font", 8, 0, 1
@@ -110,6 +110,7 @@ BOOL loadProject(struct MagUIData *uidata)
 {
 	// This function requires an open file in uidata - this is the responsibilty of the calling function
 	uidata->projectActive = FALSE;
+	initMagData(&uidata->data);
 	if (parseIFFMagazine(&uidata->data, uidata->fMag) == IFF_NO_ERROR){
 		
 		if (!uiOpenPage(uidata, NULL)){ // open first page
@@ -138,11 +139,11 @@ void window_event(Wnd *myWnd, ULONG idcmp)
 
 	if (idcmp == IDCMP_INACTIVEWINDOW){
 		if (uidata->originalWBColours){
-			setViewPortColorTable(&myWnd->app->appScreen->ViewPort, uidata->originalWBColours, uidata->maxDepth);
+			setViewPortColorTable(&uidata->data.ctx, &myWnd->app->appScreen->ViewPort, uidata->originalWBColours, uidata->maxDepth);
 		}
 	}else if (idcmp == IDCMP_ACTIVEWINDOW){
 		if (uidata->currentPage && uidata->currentPage->colourTable){
-			setViewPortColorTable(&myWnd->app->appScreen->ViewPort, uidata->currentPage->colourTable, uidata->maxDepth);
+			setViewPortColorTable(&uidata->data.ctx, &myWnd->app->appScreen->ViewPort, uidata->currentPage->colourTable, uidata->maxDepth);
 		}
 	}
 }
@@ -230,8 +231,6 @@ int main(int argc, char **argv)
 	
 	emptyProject = !loadParameters(&uidata, argc, argv);
 	
-	D(printf("Process %p started\n", FindTask(NULL)));
-	
 	initialiseApp(&myApp);
 	
 	myApp.appContext = &uidata;
@@ -289,8 +288,8 @@ int main(int argc, char **argv)
 		uidata.appWnd->info.Flags = WFLG_DRAGBAR | WFLG_CLOSEGADGET | WFLG_GIMMEZEROZERO ;
 		// Check depth and available screen size
 		
-		if (GetBitMapAttr(myApp.appScreen->RastPort.BitMap,BMA_WIDTH) < APP_WIDTH ||
-			GetBitMapAttr(myApp.appScreen->RastPort.BitMap,BMA_HEIGHT) < APP_HEIGHT){
+		if (getScreenWidth(&myApp) < APP_WIDTH ||
+			getScreenHeight(&myApp) < APP_HEIGHT){
 			printf("Cannot display on public screen without a resolution of at least 640x512\n");
 			goto exitcleanup;
 		}
@@ -303,7 +302,7 @@ int main(int argc, char **argv)
 	uidata.appWnd->idcmp |= IDCMP_INTUITICKS;
 	
 	// Can only check screen attributes prior to window opening, otherwise screen pointer has been freed and null
-	uidata.maxDepth = GetBitMapAttr(myApp.appScreen->RastPort.BitMap,BMA_DEPTH);
+	uidata.maxDepth = getScreenDepth(&myApp);
 
 	if (openAppWindow(uidata.appWnd, wndTags) != 0){
 		goto exitcleanup;
@@ -336,11 +335,11 @@ exitcleanup:
 	// App closing - clean up from here and exit
 	cleanupModMusic(&uidata);
 	if (uidata.originalWBColours){
-		setViewPortColorTable(&myApp.appScreen->ViewPort, uidata.originalWBColours, uidata.maxDepth);
+		setViewPortColorTable(&uidata.data.ctx, &myApp.appScreen->ViewPort, uidata.originalWBColours, uidata.maxDepth);
 		RemakeDisplay();
 	}
-	cleanupGelSys(uidata.appWnd);
 	closeProject(&uidata);
+	cleanupGelSys(uidata.appWnd);
 	freeDoubleBuffer(&uidata);
     appCleanUp(&myApp);
 	

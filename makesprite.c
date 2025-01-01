@@ -75,7 +75,7 @@ int main(int argc, char **argv)
 	
 cleanup:
 	if (bmp){
-		freeBitMap(bmp);
+		freeBitMap(&gfx.ctx,bmp,&gfx.bitmaphdr);
 	}
 	if (fiff){
 		fclose(fiff);
