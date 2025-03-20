@@ -14,7 +14,7 @@
 #define APP_WIDTH 640
 #define APP_HEIGHT 512
 
-const char __ver[] = "$VER: Mag Reader 1.1 (30.12.2024)";
+const char __ver[] = "$VER: Mag Reader 1.2 (20.03.2025)";
 
 static struct TextAttr _topaz8 = {
    (STRPTR)"topaz.font", 8, 0, 1
@@ -48,10 +48,7 @@ BOOL loadParameters(struct MagUIData *uidata, int argc, char **argv)
 		}
 		WBenchMsg = (struct WBStartup *)argv;
 		wbarg=WBenchMsg->sm_ArgList;
-		// We want the 2nd parameter which is the project file
-		//for(i=0, wbarg=WBenchMsg->sm_ArgList; i < WBenchMsg->sm_NumArgs; i++){
-		//	printf("ArgList has %s\n", wbarg[i].wa_Name);
-		//}
+
 		if (WBenchMsg->sm_NumArgs >= 2){
 			if (wbarg[1].wa_Lock && wbarg[1].wa_Name){
 				olddir = CurrentDir(wbarg[1].wa_Lock);
@@ -92,6 +89,10 @@ BOOL loadParameters(struct MagUIData *uidata, int argc, char **argv)
 
 void closeProject(struct MagUIData *uidata)
 {
+	if (uidata->currentPage){
+		uiClearPage(uidata);
+		uidata->currentPage = NULL;
+	}
 	if (uidata->fMag){
 		fclose(uidata->fMag);
 		uidata->fMag = NULL;
@@ -100,9 +101,6 @@ void closeProject(struct MagUIData *uidata)
 	if (uidata->originalWBColours){
 		freeColourTable(uidata->originalWBColours);
 		uidata->originalWBColours = NULL;
-	}
-	if (uidata->currentPage){
-		uiClearPage(uidata);
 	}
 }
 
@@ -211,7 +209,8 @@ int main(int argc, char **argv)
 {
 	App myApp ;
 	UWORD pens[1] = {(UWORD)~0};
-	ULONG screenTags[] = {SA_Colors,0,SA_Depth,4,SA_Pens,0,SA_Font,0,TAG_END};
+	ULONG winerror = 0;
+	ULONG screenTags[] = {SA_Colors,0,SA_Depth,4,SA_Pens,0,SA_Font,0,SA_ErrorCode,0,TAG_END};
 	ULONG screenTagsRTG[] = {SA_DisplayID,0,SA_Pens,0,SA_Font,0,TAG_END};
 	ULONG wndTags[] = {WA_AutoAdjust,TRUE,TAG_END};
 	ULONG displayTagsRTG[] = {CYBRBIDTG_Depth,24,CYBRBIDTG_NominalWidth,APP_WIDTH,CYBRBIDTG_NominalHeight,APP_HEIGHT};
@@ -222,6 +221,7 @@ int main(int argc, char **argv)
 	
 	screenTags[5] = (ULONG)pens;
 	screenTags[7] = (ULONG)&_topaz8;
+	screenTags[9] = (ULONG)&winerror;
 	screenTagsRTG[3] = (ULONG)pens;
 	screenTagsRTG[5] = (ULONG)&_topaz8;
 	
@@ -278,6 +278,7 @@ int main(int argc, char **argv)
 			initDoubleBuffer(&uidata);
 		}
 		if (createAppScreen(&myApp, TRUE, TRUE, prefScreenTags) != 0){
+			printf("Cannot open screen, error %d\n", winerror);
 			goto exitcleanup;
 		}
 		wndSetSize(uidata.appWnd, myApp.appScreen->Width, myApp.appScreen->Height);

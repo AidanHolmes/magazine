@@ -251,17 +251,33 @@ static BOOL _printString(struct RastPort *rp, UWORD x, UWORD y, UWORD w, UWORD h
 	return TRUE;
 }
 
+static BOOL _addTextScroll(struct MagUIData *uidata, char *txt, UWORD len, UWORD x, UWORD y, UWORD w, UWORD h)
+{
+	struct MagScrollText *st = NULL;
+	if (!effectsInit(uidata, "TextScroll")){
+		return FALSE;
+	}
+
+	st = addScrollText(uidata, txt, len, x, y, w, h);
+
+	return (BOOL)(st?TRUE:FALSE);
+}
+
 static BOOL _openPageText(struct MagUIData *uidata, struct MagText *text)
 {
 	UWORD x=0,y=0,w=0,h=0;
 	char *textBody = NULL ;
-	BOOL ret = FALSE ;
+	struct MagValue *textType = NULL ;
+	BOOL ret = FALSE, scrollText = FALSE ;
 	
 	if (text->config){
 		x = magatouw(findValue("X", text->config), 0);
 		y = magatouw(findValue("Y", text->config), 0);
 		w = magatouw(findValue("WIDTH", text->config), uidata->appWnd->appWindow->Width - x);
 		h = magatouw(findValue("HEIGHT", text->config), uidata->appWnd->appWindow->Height - y);
+		if ((textType=findValue("TYPE", text->config))){
+			scrollText = magstricmp(textType->szValue,"SCROLL",7);
+		}
 	}
 	
 	x += uidata->borderLeft;
@@ -276,7 +292,11 @@ static BOOL _openPageText(struct MagUIData *uidata, struct MagText *text)
 	if (fread(textBody, text->length, 1, uidata->data.ctx.f) == 0){
 		goto cleanup;
 	}
-	_printString(uidata->appWnd->appWindow->RPort, x, y, w, h, textBody, text->length);
+	if (scrollText){
+		_addTextScroll(uidata, textBody, text->length, x, y, w, h);
+	}else{
+		_printString(uidata->appWnd->appWindow->RPort, x, y, w, h, textBody, text->length);
+	}
 	
 	ret = TRUE ;
 cleanup:
@@ -551,6 +571,11 @@ BOOL uiOpenPage(struct MagUIData *uidata, char *szPageRef)
 void uiClearPage(struct MagUIData *uidata)
 {
 	struct MagControls *n = NULL, *c = NULL;
+	
+	// Clear up any allocated memory for scrolling text effects
+	if (uidata->currentPage){
+		removeAllScrollText(uidata->currentPage);
+	}
 	
 	// Stop any intuiticks unless needed
 	magUnregisterAllTicks(uidata);

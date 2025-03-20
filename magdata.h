@@ -6,7 +6,10 @@
 #include "config.h"
 #include "maggfx.h"
 
+enum enScrollState {SCROLL_TEXT_INIT=1};
+
 struct IFFmaggfx;
+struct MagScrollText;
 
 struct MagPage
 {
@@ -15,6 +18,7 @@ struct MagPage
 	struct MagPage *prev;
 	struct MagConfig config;
 	struct IFFmaggfx *images;
+	struct MagScrollText *scrollText;
 	struct IFFChunkData cmap; // Colour map for all images on page
 	ULONG *colourTable ; // a 32bit colour table of the cmap
 	UBYTE greyIntensities[256]; // colour to grey mapping
@@ -25,6 +29,25 @@ struct MagPage
 	struct MagColour highlight;
 	
 };
+
+struct MagScrollText
+{
+	struct MagPage *page;
+	struct MagScrollText *next;
+	UWORD flags;
+	char *txt; 
+	UWORD length; 
+	UWORD charoffset ; // scroll offset in txt buffer
+	UWORD x; 
+	UWORD y;
+	UWORD height; 
+	UWORD width;
+	struct BitMap *backgnd; // original image background for blits
+	struct RastPort textRastPort;
+	//UBYTE activeBuffer;
+	WORD xoff[2]; // x scroll offset for textPort
+};
+
 struct IFFMod;
 
 struct IFFMod
@@ -73,5 +96,12 @@ struct IFFmaggfx *findImage(struct MagPage *page, struct MagValue *imgName);
 
 // Find a music mod using the config name value
 struct IFFMod *findMod(struct IFFMagazineData *iff, struct MagValue *modName);
+
+// Add scroll text data to the current page. Allocation of memory is private to function and return pointer should not 
+// be freed. removeAllScrollText will remove allocated memory on a page. 
+struct MagScrollText *addScrollText(struct MagUIData *uidata, char *txt, UWORD len, UWORD x, UWORD y, UWORD w, UWORD h);
+
+// Free scroll text memory from a page.
+void removeAllScrollText(struct MagPage *page);
 
 #endif

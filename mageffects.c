@@ -10,10 +10,12 @@
 #include <proto/timer.h>
 #include <devices/timer.h>
 #include <exec/memory.h>
+#include <proto/graphics.h>
 
 #define MAGMAXSPRITES 10
 
 static void _effectsSetupSnow(struct MagUIData *uidata);
+static void _effectsSetupTextScroll(struct MagUIData *uidata);
 
 static struct MagSprite{
 	struct VSprite sprite;
@@ -31,6 +33,9 @@ BOOL effectsInit(struct MagUIData *uidata, char *szEffect)
 {
 	if (magstricmp(szEffect, "Snowfall", MAG_MAX_PARAMETER_NAME)){
 		_effectsSetupSnow(uidata);
+		return TRUE;
+	}else if (magstricmp(szEffect, "TextScroll", MAG_MAX_PARAMETER_NAME)){
+		_effectsSetupTextScroll(uidata);
 		return TRUE;
 	}
 	
@@ -250,4 +255,129 @@ static void _effectsSetupSnow(struct MagUIData *uidata)
 					&uidata->dbufBitmaps[uidata->dbufActive ^ 1], 0,0,640,512,0xC0,0xFF,0);
 	}
 	magRegisterTick(uidata, _snowTickEvent);
+}
+
+
+static UWORD _fillTextRastPort(struct MagScrollText *txt, UWORD bufferNo)
+{
+	struct TextExtent te ;
+	UWORD charsToFit = 0;
+	UWORD txtLen = 0;
+	
+	// Fix bufferNo to 0 or 1
+	if (bufferNo > 1){
+		bufferNo = 1;
+	}
+	
+	// Move text render to active buffer offset
+	Move(&txt->textRastPort, 0, 7+ (bufferNo * txt->height));
+
+	// Toggle active buffer
+	//txt->activeBuffer=txt->activeBuffer?0:1;
+	
+	txtLen = txt->length - txt->charoffset;
+	if (txtLen == 0){
+		txt->charoffset=0;
+		txtLen = txt->length;
+	}
+	charsToFit = TextFit(&txt->textRastPort, txt->txt + txt->charoffset, txtLen, &te, NULL, 1, txt->width, 30000);
+	if (charsToFit == 0){
+		// no text fits. Fast forward to end of string
+		txt->charoffset = txt->length;
+		return txt->length;
+	}
+	//EraseRect(&txt->textRastPort, 
+	//				0,bufferNo * txt->height, 
+	//				txt->width, 
+	//				txt->height);
+	Text(&txt->textRastPort, txt->txt + txt->charoffset, charsToFit); // write to text rastport
+	
+	txt->charoffset += charsToFit;
+	return charsToFit;
+}
+
+static BOOL _initTextScroll(struct Window *scrWnd, struct MagScrollText *txt)
+{
+	if((txt->flags & SCROLL_TEXT_INIT) == 0){
+		// First run - fill buffer with text to start print scroll
+		_fillTextRastPort(txt,0);
+		_fillTextRastPort(txt,1); // fill again to set text in both buffers and set active to first
+		
+		// Reset offset positions with the new active buffer at offset 0
+		txt->xoff[0] = 0;
+		txt->xoff[1] = txt->width;
+		
+		// Copy background into image rastport cache
+		BltBitMap(scrWnd->RPort->BitMap, txt->x, txt->y, txt->backgnd, 0,0,txt->width,txt->height,0x0C0,0xFF,NULL);
+		
+		txt->flags |= SCROLL_TEXT_INIT;
+	}
+	return TRUE ;
+}
+
+static BOOL _drawTextScroll(struct Window *scrWnd, struct MagScrollText *txt)
+{
+	WORD dx=0,sx=0,w=0,i=0;
+	
+	WaitBlit();
+	// Blit in the background
+	//BltBitMapRastPort(txt->backgnd, 0, 0, scrWnd->RPort, txt->x, txt->y,txt->width,txt->height,0x0C0);
+
+	for(i=0;i<=1;i++){
+		dx=sx=w=0;
+		// Set destination of bitblt
+		if (txt->xoff[i] >= 0){
+			dx = txt->x + txt->xoff[i];
+			w = txt->width - txt->xoff[i];
+		}else{
+			dx = txt->x;
+			w = txt->width + txt->xoff[i];
+			sx = -(txt->xoff[i]);
+		}
+		
+		BltBitMapRastPort(txt->textRastPort.BitMap, sx, i * txt->height, scrWnd->RPort, dx, txt->y,w,txt->height,0x0C0);
+		//BltBitMapRastPort(txt->textRastPort.BitMap, 0, 0, scrWnd->RPort, txt->x, txt->y,txt->width,txt->height,0xC0);
+	
+		txt->xoff[i] -= 2;
+		if (txt->xoff[i] < (-txt->width)){ // completed full scroll
+			txt->xoff[i] = txt->width; // reset to right side of scroll area
+			_fillTextRastPort(txt,i); // add new text
+		}
+	}
+	
+	return TRUE ;
+}
+
+static void _textTickEvent(struct MagUIData *uidata)
+{
+	//struct timeval now;
+	struct MagPage *page = NULL ;
+	struct MagScrollText *txt = NULL;
+	//struct Device *TimerBase = uidata->appWnd->app->tmr->io_Device;
+	
+	if (!(page=uidata->currentPage)){
+		return;
+	}
+	
+	if (!page->scrollText){
+		return;
+	}
+	
+	//GetSysTime(&now);
+	
+	// Iterate through all scroll texts on page
+	for(txt=page->scrollText;txt;txt=txt->next){
+		if((txt->flags & SCROLL_TEXT_INIT) == 0){
+			// Create scroll text
+			_initTextScroll(uidata->appWnd->appWindow, txt);
+		}else{
+			// initialised
+			_drawTextScroll(uidata->appWnd->appWindow, txt);
+		}
+	}
+}
+
+static void _effectsSetupTextScroll(struct MagUIData *uidata)
+{
+	magRegisterTick(uidata, _textTickEvent);
 }

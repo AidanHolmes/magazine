@@ -1,8 +1,12 @@
 #include "magdata.h"
+#include "magui.h"
+#include "gfx.h"
 #include <stdio.h>
 #include <string.h>
 #include <proto/exec.h>
 #include <exec/exec.h>
+
+#define SCROLLTXT_BUF_MULT 3
 
 struct MagPage* _createPage(void)
 {
@@ -29,6 +33,17 @@ struct IFFmaggfx* _getLastImage(struct MagPage *page)
 	for(thisImg=page->images; thisImg->next; thisImg=thisImg->next);
 	
 	return thisImg;
+}
+
+struct MagScrollText* _getLastScrollText(struct MagPage *page)
+{
+	struct MagScrollText *thisTxt = NULL;
+	if (!page->scrollText){
+		return NULL;
+	}
+	for(thisTxt=page->scrollText; thisTxt->next; thisTxt=thisTxt->next);
+	
+	return thisTxt;
 }
 
 struct IFFmaggfx *_createImage(struct MagPage *page)
@@ -251,6 +266,10 @@ void cleanUpMagData(struct IFFMagazineData *iff)
 			FreeVec(img);
 			img = tmpimg;
 		}
+		page->images = NULL;
+
+		removeAllScrollText(page);
+
 		if (page->colourTable){
 			FreeVec(page->colourTable);
 		}
@@ -263,8 +282,115 @@ void cleanUpMagData(struct IFFMagazineData *iff)
 		FreeVec(mod);
 		mod = tmpmod ;
 	}
+	iff->mods = NULL ;
+	iff->modCount = 0;
 	iff->pages = NULL ;
+	iff->pageCount = 0;
 	closeIFFCtx((struct IFFctx*)iff);
+}
+
+struct MagScrollText *addScrollText(struct MagUIData *uidata, char *txt, UWORD len, UWORD x, UWORD y, UWORD w, UWORD h)
+{
+	struct MagScrollText *sTxt = NULL, *attachTo = NULL;
+	struct MagPage *page = NULL ;
+	char *szTxt = NULL ;
+	BOOL ret = FALSE ;
+	struct TextFont *tf = NULL;
+	struct TextAttr __topaz8 = {
+	   (STRPTR)"topaz.font", 8, 0, 1
+	};
+
+	if (!(page=uidata->currentPage)){
+		return NULL;
+	}
+
+	sTxt = (struct MagScrollText*)AllocVec(sizeof(struct MagScrollText), MEMF_ANY | MEMF_CLEAR);
+
+	if (sTxt){
+		if (!(szTxt = (char*)AllocVec(len, MEMF_ANY | MEMF_CLEAR))){
+			goto cleanup;
+		}
+
+		sTxt->page = page;
+		sTxt->txt = szTxt;
+		memcpy(szTxt, txt, len);
+		sTxt->length = len;
+		sTxt->x = x;
+		sTxt->y = y;
+		sTxt->height = h;
+		sTxt->width = w;
+		if (!(sTxt->backgnd = v36AllocBitMap(w,h,uidata->maxDepth))){
+		//if (!(sTxt->backgnd = AllocBitMap(w,h,8,0,uidata->appWnd->appWindow->RPort->BitMap))){
+			goto cleanup;
+		}
+		InitRastPort(&sTxt->textRastPort);
+		if ((tf = OpenFont(&__topaz8))){
+			SetFont(&sTxt->textRastPort,tf);
+			CloseFont(tf);
+		}
+		//if (!(sTxt->textRastPort.BitMap = AllocBitMap(w,h*SCROLLTXT_BUF_MULT,8,0,uidata->appWnd->appWindow->RPort->BitMap))){
+		if (!(sTxt->textRastPort.BitMap = v36AllocBitMap(w,h*SCROLLTXT_BUF_MULT,uidata->maxDepth))){
+			goto cleanup;
+		}
+		
+		if (!page->scrollText){
+			page->scrollText = sTxt;
+		}else{
+			if (attachTo = _getLastScrollText(page)){
+				attachTo->next = sTxt;
+			}
+		}
+	}
+	
+	ret = TRUE ;
+	
+cleanup:
+	if (!ret){
+		if (sTxt){
+			if (sTxt->backgnd){
+				v36FreeBitMap(sTxt->backgnd, sTxt->width, sTxt->height);
+				//FreeBitMap(sTxt->backgnd);
+				sTxt->backgnd = NULL ;
+			}
+			if (sTxt->textRastPort.BitMap){
+				v36FreeBitMap(sTxt->textRastPort.BitMap, sTxt->width, sTxt->height*SCROLLTXT_BUF_MULT);
+				//FreeBitMap(sTxt->textRastPort.BitMap);
+				sTxt->textRastPort.BitMap = NULL ;
+			}
+			if (sTxt->txt){
+				FreeVec(sTxt->txt);
+				sTxt->txt = NULL ;
+			}
+
+			FreeVec(sTxt);
+			sTxt = NULL;
+		}
+	}
+	
+	return sTxt;
+}
+
+void removeAllScrollText(struct MagPage *page)
+{
+	struct MagScrollText *txt = NULL, *tmptxt = NULL ;
+	for(txt=page->scrollText;txt;){
+		if (txt->backgnd){
+			v36FreeBitMap(txt->backgnd, txt->width, txt->height);
+			txt->backgnd = NULL;
+		}
+		if (txt->txt){
+			FreeVec(txt->txt);
+			txt->txt = NULL;
+		}
+		if (txt->textRastPort.BitMap){
+			v36FreeBitMap(txt->textRastPort.BitMap, txt->width, txt->height*SCROLLTXT_BUF_MULT);
+			txt->textRastPort.BitMap = NULL ;
+		}
+		tmptxt = txt->next;
+		FreeVec(txt);
+		txt = tmptxt;
+	}
+	page->scrollText = NULL;
 }
 
 struct MagPage *findPage(struct IFFMagazineData *iff, char *szName)
