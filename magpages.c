@@ -251,21 +251,21 @@ static BOOL _printString(struct RastPort *rp, UWORD x, UWORD y, UWORD w, UWORD h
 	return TRUE;
 }
 
-static BOOL _addTextScroll(struct MagUIData *uidata, char *txt, UWORD len, UWORD x, UWORD y, UWORD w, UWORD h)
+static BOOL _addTextScroll(struct MagUIData *uidata, char *txt, UWORD len, UWORD x, UWORD y, UWORD w, UWORD h, UWORD speed, UWORD pen)
 {
 	struct MagScrollText *st = NULL;
 	if (!effectsInit(uidata, "TextScroll")){
 		return FALSE;
 	}
 
-	st = addScrollText(uidata, txt, len, x, y, w, h);
+	st = addScrollText(uidata, txt, len, x, y, w, h, speed, pen);
 
 	return (BOOL)(st?TRUE:FALSE);
 }
 
 static BOOL _openPageText(struct MagUIData *uidata, struct MagText *text)
 {
-	UWORD x=0,y=0,w=0,h=0;
+	UWORD x=0,y=0,w=0,h=0,speed=0,pen=0;
 	char *textBody = NULL ;
 	struct MagValue *textType = NULL ;
 	BOOL ret = FALSE, scrollText = FALSE ;
@@ -275,6 +275,8 @@ static BOOL _openPageText(struct MagUIData *uidata, struct MagText *text)
 		y = magatouw(findValue("Y", text->config), 0);
 		w = magatouw(findValue("WIDTH", text->config), uidata->appWnd->appWindow->Width - x);
 		h = magatouw(findValue("HEIGHT", text->config), uidata->appWnd->appWindow->Height - y);
+		speed = magatouw(findValue("SPEED", text->config), 4);
+		pen = magatouw(findValue("PEN", text->config), 2);
 		if ((textType=findValue("TYPE", text->config))){
 			scrollText = magstricmp(textType->szValue,"SCROLL",7);
 		}
@@ -293,7 +295,7 @@ static BOOL _openPageText(struct MagUIData *uidata, struct MagText *text)
 		goto cleanup;
 	}
 	if (scrollText){
-		_addTextScroll(uidata, textBody, text->length, x, y, w, h);
+		_addTextScroll(uidata, textBody, text->length, x, y, w, h,speed,pen);
 	}else{
 		_printString(uidata->appWnd->appWindow->RPort, x, y, w, h, textBody, text->length);
 	}

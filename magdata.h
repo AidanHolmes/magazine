@@ -42,6 +42,8 @@ struct MagScrollText
 	UWORD y;
 	UWORD height; 
 	UWORD width;
+	UWORD speed;
+	UWORD pen;
 	struct BitMap *backgnd; // original image background for blits
 	struct RastPort textRastPort;
 	//UBYTE activeBuffer;
@@ -99,7 +101,7 @@ struct IFFMod *findMod(struct IFFMagazineData *iff, struct MagValue *modName);
 
 // Add scroll text data to the current page. Allocation of memory is private to function and return pointer should not 
 // be freed. removeAllScrollText will remove allocated memory on a page. 
-struct MagScrollText *addScrollText(struct MagUIData *uidata, char *txt, UWORD len, UWORD x, UWORD y, UWORD w, UWORD h);
+struct MagScrollText *addScrollText(struct MagUIData *uidata, char *txt, UWORD len, UWORD x, UWORD y, UWORD w, UWORD h, UWORD speed, UWORD pen);
 
 // Free scroll text memory from a page.
 void removeAllScrollText(struct MagPage *page);

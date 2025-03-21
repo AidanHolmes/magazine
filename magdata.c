@@ -289,7 +289,7 @@ void cleanUpMagData(struct IFFMagazineData *iff)
 	closeIFFCtx((struct IFFctx*)iff);
 }
 
-struct MagScrollText *addScrollText(struct MagUIData *uidata, char *txt, UWORD len, UWORD x, UWORD y, UWORD w, UWORD h)
+struct MagScrollText *addScrollText(struct MagUIData *uidata, char *txt, UWORD len, UWORD x, UWORD y, UWORD w, UWORD h, UWORD speed, UWORD pen)
 {
 	struct MagScrollText *sTxt = NULL, *attachTo = NULL;
 	struct MagPage *page = NULL ;
@@ -319,6 +319,8 @@ struct MagScrollText *addScrollText(struct MagUIData *uidata, char *txt, UWORD l
 		sTxt->y = y;
 		sTxt->height = h;
 		sTxt->width = w;
+		sTxt->speed = speed;
+		sTxt->pen = pen;
 		if (!(sTxt->backgnd = v36AllocBitMap(w,h,uidata->maxDepth))){
 		//if (!(sTxt->backgnd = AllocBitMap(w,h,8,0,uidata->appWnd->appWindow->RPort->BitMap))){
 			goto cleanup;
