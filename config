@@ -3,7 +3,7 @@
 {[PAGE NUMBER=1 REF=main]
 	[IMAGE FILE=images/illusion.iff X=140 Y=20 NAME=pic1]
 	[MUSIC FILE=PC:mods/favorites/chip/_first_last_.mod LOOP=FOREVER ONEXIT=CONT]
-	[TEXT X=140 Y=100 WIDTH=360 HEIGHT=10 TYPE=SCROLL]
+	[TEXT X=140 Y=100 WIDTH=360 HEIGHT=12 TYPE=SCROLL FONT=garnet.font SIZE=9]
 	Text just appears without property tags. Initial whitespace ignored. 
 	Newlines processed as expected. If new TEXT property appears then text reprocessed in new IFF chunk.
 	[BUTTON NAME=next NAVTO=page1 X=40 Y=20 WIDTH=60 HEIGHT=25]

@@ -9,6 +9,8 @@
 #include <clib/dos_protos.h>
 #include <workbench/startup.h>
 
+const char __ver[] = "$VER: MakeMag 1.0 (22.03.2025)";
+
 FILE* loadParameters(char **szIFF, int argc, char **argv)
 {
 	char *szConfigFileName = NULL;

@@ -251,24 +251,25 @@ static BOOL _printString(struct RastPort *rp, UWORD x, UWORD y, UWORD w, UWORD h
 	return TRUE;
 }
 
-static BOOL _addTextScroll(struct MagUIData *uidata, char *txt, UWORD len, UWORD x, UWORD y, UWORD w, UWORD h, UWORD speed, UWORD pen)
+static BOOL _addTextScroll(struct MagUIData *uidata, struct MagScrollText *pTxt)
 {
 	struct MagScrollText *st = NULL;
 	if (!effectsInit(uidata, "TextScroll")){
 		return FALSE;
 	}
 
-	st = addScrollText(uidata, txt, len, x, y, w, h, speed, pen);
+	st = addScrollText(uidata, pTxt);
 
 	return (BOOL)(st?TRUE:FALSE);
 }
 
 static BOOL _openPageText(struct MagUIData *uidata, struct MagText *text)
 {
-	UWORD x=0,y=0,w=0,h=0,speed=0,pen=0;
-	char *textBody = NULL ;
-	struct MagValue *textType = NULL ;
+	UWORD x=0,y=0,w=0,h=0,speed=0,pen=0,fontsize=0;
+	char *textBody = NULL;
+	struct MagValue *textType = NULL, *mvFont = NULL;
 	BOOL ret = FALSE, scrollText = FALSE ;
+	struct MagScrollText scrlTxt;
 	
 	if (text->config){
 		x = magatouw(findValue("X", text->config), 0);
@@ -277,6 +278,8 @@ static BOOL _openPageText(struct MagUIData *uidata, struct MagText *text)
 		h = magatouw(findValue("HEIGHT", text->config), uidata->appWnd->appWindow->Height - y);
 		speed = magatouw(findValue("SPEED", text->config), 4);
 		pen = magatouw(findValue("PEN", text->config), 2);
+		fontsize = magatouw(findValue("SIZE", text->config), 8);
+		mvFont = findValue("FONT", text->config);
 		if ((textType=findValue("TYPE", text->config))){
 			scrollText = magstricmp(textType->szValue,"SCROLL",7);
 		}
@@ -295,7 +298,23 @@ static BOOL _openPageText(struct MagUIData *uidata, struct MagText *text)
 		goto cleanup;
 	}
 	if (scrollText){
-		_addTextScroll(uidata, textBody, text->length, x, y, w, h,speed,pen);
+		memset(&scrlTxt,0,sizeof(struct MagScrollText));
+		scrlTxt.txt = textBody;
+		scrlTxt.length = text->length;
+		scrlTxt.x = x;
+		scrlTxt.y = y;
+		scrlTxt.width = w;
+		scrlTxt.height = h;
+		scrlTxt.speed = speed;
+		scrlTxt.pen = pen;
+		if (mvFont){
+			scrlTxt.font.ta_Name = mvFont->szValue;
+		}else{
+			scrlTxt.font.ta_Name = "topaz.font";
+		}
+		scrlTxt.font.ta_YSize = fontsize;
+		scrlTxt.font.ta_Style = FSF_BOLD;
+		_addTextScroll(uidata, &scrlTxt);
 	}else{
 		_printString(uidata->appWnd->appWindow->RPort, x, y, w, h, textBody, text->length);
 	}
@@ -576,7 +595,7 @@ void uiClearPage(struct MagUIData *uidata)
 	
 	// Clear up any allocated memory for scrolling text effects
 	if (uidata->currentPage){
-		removeAllScrollText(uidata->currentPage);
+		removeAllScrollText(&uidata->data, uidata->currentPage);
 	}
 	
 	// Stop any intuiticks unless needed

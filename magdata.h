@@ -6,6 +6,7 @@
 #include "config.h"
 #include "maggfx.h"
 
+#define MAX_SCROLL_TEXT_BUFFERS 3
 enum enScrollState {SCROLL_TEXT_INIT=1};
 
 struct IFFmaggfx;
@@ -34,20 +35,27 @@ struct MagScrollText
 {
 	struct MagPage *page;
 	struct MagScrollText *next;
-	UWORD flags;
-	char *txt; 
-	UWORD length; 
+	
+	// Public attributes
+	struct TextAttr font;   // Preferred font
+	char *txt; 				// The text string to use in scroller
+	UWORD length; 			// Length of the text string
+	UWORD x; 				// X Position on the screen
+	UWORD y;				// Y Position on the screen
+	UWORD height; 			// Height of the scroller. Should be at least height of text
+	UWORD width;			// Width of the scroller
+	UWORD speed;			// Speed in pixels for each 'tick' cycle
+	UWORD pen;				// Index of pen to use for text
+	
+	// Private attributes
 	UWORD charoffset ; // scroll offset in txt buffer
-	UWORD x; 
-	UWORD y;
-	UWORD height; 
-	UWORD width;
-	UWORD speed;
-	UWORD pen;
+	UWORD flags;
+	struct TextFont textFont;
 	struct BitMap *backgnd; // original image background for blits
 	struct RastPort textRastPort;
-	//UBYTE activeBuffer;
-	WORD xoff[2]; // x scroll offset for textPort
+	UWORD actual_width[MAX_SCROLL_TEXT_BUFFERS];
+	WORD xoff[MAX_SCROLL_TEXT_BUFFERS]; // x scroll offset for textPort
+	BOOL active[MAX_SCROLL_TEXT_BUFFERS];
 };
 
 struct IFFMod;
@@ -101,9 +109,10 @@ struct IFFMod *findMod(struct IFFMagazineData *iff, struct MagValue *modName);
 
 // Add scroll text data to the current page. Allocation of memory is private to function and return pointer should not 
 // be freed. removeAllScrollText will remove allocated memory on a page. 
-struct MagScrollText *addScrollText(struct MagUIData *uidata, char *txt, UWORD len, UWORD x, UWORD y, UWORD w, UWORD h, UWORD speed, UWORD pen);
+//struct MagScrollText *addScrollText(struct MagUIData *uidata, char *txt, UWORD len, UWORD x, UWORD y, UWORD w, UWORD h, UWORD speed, UWORD pen);
+struct MagScrollText *addScrollText(struct MagUIData *uidata, struct MagScrollText *scrl);
 
 // Free scroll text memory from a page.
-void removeAllScrollText(struct MagPage *page);
+void removeAllScrollText(struct IFFMagazineData *iff, struct MagPage *page);
 
 #endif

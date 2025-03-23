@@ -6,7 +6,7 @@
 #include <proto/exec.h>
 #include <exec/exec.h>
 
-#define SCROLLTXT_BUF_MULT 3
+#define SCROLLTXT_BUF_MULT MAX_SCROLL_TEXT_BUFFERS
 
 struct MagPage* _createPage(void)
 {
@@ -268,7 +268,7 @@ void cleanUpMagData(struct IFFMagazineData *iff)
 		}
 		page->images = NULL;
 
-		removeAllScrollText(page);
+		removeAllScrollText(iff,page);
 
 		if (page->colourTable){
 			FreeVec(page->colourTable);
@@ -289,16 +289,14 @@ void cleanUpMagData(struct IFFMagazineData *iff)
 	closeIFFCtx((struct IFFctx*)iff);
 }
 
-struct MagScrollText *addScrollText(struct MagUIData *uidata, char *txt, UWORD len, UWORD x, UWORD y, UWORD w, UWORD h, UWORD speed, UWORD pen)
+struct MagScrollText *addScrollText(struct MagUIData *uidata, struct MagScrollText *scrl)
+//struct MagScrollText *addScrollText(struct MagUIData *uidata, char *txt, UWORD len, UWORD x, UWORD y, UWORD w, UWORD h, UWORD speed, UWORD pen)
 {
 	struct MagScrollText *sTxt = NULL, *attachTo = NULL;
 	struct MagPage *page = NULL ;
 	char *szTxt = NULL ;
 	BOOL ret = FALSE ;
 	struct TextFont *tf = NULL;
-	struct TextAttr __topaz8 = {
-	   (STRPTR)"topaz.font", 8, 0, 1
-	};
 
 	if (!(page=uidata->currentPage)){
 		return NULL;
@@ -307,31 +305,36 @@ struct MagScrollText *addScrollText(struct MagUIData *uidata, char *txt, UWORD l
 	sTxt = (struct MagScrollText*)AllocVec(sizeof(struct MagScrollText), MEMF_ANY | MEMF_CLEAR);
 
 	if (sTxt){
-		if (!(szTxt = (char*)AllocVec(len, MEMF_ANY | MEMF_CLEAR))){
+		if (!(szTxt = (char*)AllocVec(scrl->length, MEMF_ANY | MEMF_CLEAR))){
 			goto cleanup;
 		}
 
+		*sTxt = *scrl ; // shallow copy
 		sTxt->page = page;
 		sTxt->txt = szTxt;
-		memcpy(szTxt, txt, len);
-		sTxt->length = len;
-		sTxt->x = x;
-		sTxt->y = y;
-		sTxt->height = h;
-		sTxt->width = w;
-		sTxt->speed = speed;
-		sTxt->pen = pen;
-		if (!(sTxt->backgnd = v36AllocBitMap(w,h,uidata->maxDepth))){
-		//if (!(sTxt->backgnd = AllocBitMap(w,h,8,0,uidata->appWnd->appWindow->RPort->BitMap))){
+		memcpy(szTxt, scrl->txt, scrl->length);
+		
+		if (uidata->data.ctx.gfxlib->lib_Version >=39){
+			sTxt->backgnd = AllocBitMap(sTxt->width,sTxt->height,uidata->maxDepth,0,uidata->appWnd->appWindow->RPort->BitMap);
+		}else{
+			sTxt->backgnd = v36AllocBitMap(sTxt->width,sTxt->height,uidata->maxDepth);
+		}
+		if (!sTxt->backgnd){
 			goto cleanup;
 		}
 		InitRastPort(&sTxt->textRastPort);
-		if ((tf = OpenFont(&__topaz8))){
+		if ((tf = OpenFont(&sTxt->font))){
 			SetFont(&sTxt->textRastPort,tf);
+			sTxt->textFont = *tf; // shallow copy the attributes of the font - tf will close so not all values are valid
 			CloseFont(tf);
 		}
-		//if (!(sTxt->textRastPort.BitMap = AllocBitMap(w,h*SCROLLTXT_BUF_MULT,8,0,uidata->appWnd->appWindow->RPort->BitMap))){
-		if (!(sTxt->textRastPort.BitMap = v36AllocBitMap(w,h*SCROLLTXT_BUF_MULT,uidata->maxDepth))){
+		if (uidata->data.ctx.gfxlib->lib_Version >=39){
+			sTxt->textRastPort.BitMap = AllocBitMap(sTxt->width,sTxt->height*SCROLLTXT_BUF_MULT,uidata->maxDepth,BMF_CLEAR,uidata->appWnd->appWindow->RPort->BitMap);
+		}else{
+			sTxt->textRastPort.BitMap = v36AllocBitMap(sTxt->width,sTxt->height*SCROLLTXT_BUF_MULT,uidata->maxDepth);
+		}
+
+		if(!sTxt->textRastPort.BitMap){
 			goto cleanup;
 		}
 		
@@ -350,13 +353,19 @@ cleanup:
 	if (!ret){
 		if (sTxt){
 			if (sTxt->backgnd){
-				v36FreeBitMap(sTxt->backgnd, sTxt->width, sTxt->height);
-				//FreeBitMap(sTxt->backgnd);
+				if (uidata->data.ctx.gfxlib->lib_Version >=39){
+					FreeBitMap(sTxt->backgnd);
+				}else{
+					v36FreeBitMap(sTxt->backgnd, sTxt->width, sTxt->height);
+				}
 				sTxt->backgnd = NULL ;
 			}
 			if (sTxt->textRastPort.BitMap){
-				v36FreeBitMap(sTxt->textRastPort.BitMap, sTxt->width, sTxt->height*SCROLLTXT_BUF_MULT);
-				//FreeBitMap(sTxt->textRastPort.BitMap);
+				if (uidata->data.ctx.gfxlib->lib_Version >=39){
+					FreeBitMap(sTxt->textRastPort.BitMap);
+				}else{
+					v36FreeBitMap(sTxt->textRastPort.BitMap, sTxt->width, sTxt->height*SCROLLTXT_BUF_MULT);
+				}
 				sTxt->textRastPort.BitMap = NULL ;
 			}
 			if (sTxt->txt){
@@ -372,12 +381,16 @@ cleanup:
 	return sTxt;
 }
 
-void removeAllScrollText(struct MagPage *page)
+void removeAllScrollText(struct IFFMagazineData *iff, struct MagPage *page)
 {
 	struct MagScrollText *txt = NULL, *tmptxt = NULL ;
 	for(txt=page->scrollText;txt;){
 		if (txt->backgnd){
-			v36FreeBitMap(txt->backgnd, txt->width, txt->height);
+			if (iff->ctx.gfxlib->lib_Version >=39){
+				FreeBitMap(txt->backgnd);
+			}else{
+				v36FreeBitMap(txt->backgnd, txt->width, txt->height);
+			}
 			txt->backgnd = NULL;
 		}
 		if (txt->txt){
@@ -385,7 +398,11 @@ void removeAllScrollText(struct MagPage *page)
 			txt->txt = NULL;
 		}
 		if (txt->textRastPort.BitMap){
-			v36FreeBitMap(txt->textRastPort.BitMap, txt->width, txt->height*SCROLLTXT_BUF_MULT);
+			if (iff->ctx.gfxlib->lib_Version >=39){
+				FreeBitMap(txt->textRastPort.BitMap);
+			}else{
+				v36FreeBitMap(txt->textRastPort.BitMap, txt->width, txt->height*SCROLLTXT_BUF_MULT);
+			}
 			txt->textRastPort.BitMap = NULL ;
 		}
 		tmptxt = txt->next;

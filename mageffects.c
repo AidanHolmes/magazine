@@ -264,13 +264,13 @@ static UWORD _fillTextRastPort(struct MagScrollText *txt, UWORD bufferNo)
 	UWORD charsToFit = 0;
 	UWORD txtLen = 0;
 	
-	// Fix bufferNo to 0 or 1
-	if (bufferNo > 1){
-		bufferNo = 1;
+	// Fix bufferNo to 0, 1 or 2
+	if (bufferNo >= MAX_SCROLL_TEXT_BUFFERS){
+		bufferNo = MAX_SCROLL_TEXT_BUFFERS-1;
 	}
 	
 	// Move text render to active buffer offset
-	Move(&txt->textRastPort, 0, 7+ (bufferNo * txt->height));
+	Move(&txt->textRastPort, 0, txt->textFont.tf_YSize + (bufferNo * txt->height));
 	
 	txtLen = txt->length - txt->charoffset;
 	if (txtLen == 0){
@@ -283,10 +283,7 @@ static UWORD _fillTextRastPort(struct MagScrollText *txt, UWORD bufferNo)
 		txt->charoffset = txt->length;
 		return txt->length;
 	}
-	EraseRect(&txt->textRastPort, 
-					0,bufferNo * txt->height, 
-					txt->width, 
-					txt->height);
+	txt->actual_width[bufferNo] = te.te_Width;
 	Text(&txt->textRastPort, txt->txt + txt->charoffset, charsToFit); // write to text rastport
 	
 	txt->charoffset += charsToFit;
@@ -299,11 +296,14 @@ static BOOL _initTextScroll(struct Window *scrWnd, struct MagScrollText *txt)
 		SetAPen(&txt->textRastPort, txt->pen); 
 		// First run - fill buffer with text to start print scroll
 		_fillTextRastPort(txt,0);
-		_fillTextRastPort(txt,1); // fill again to set text in both buffers and set active to first
 		
 		// Reset offset positions with the new active buffer at offset 0
-		txt->xoff[0] = 0;
+		txt->xoff[0] = txt->width;
+		txt->active[0] = TRUE;
 		txt->xoff[1] = txt->width;
+		txt->active[1] = FALSE;
+		txt->xoff[2] = txt->width;
+		txt->active[2] = FALSE;
 		
 		// Copy background into image rastport cache
 		BltBitMap(scrWnd->RPort->BitMap, txt->x, txt->y, txt->backgnd, 0,0,txt->width,txt->height,0x0C0,0xFF,NULL);
@@ -315,31 +315,47 @@ static BOOL _initTextScroll(struct Window *scrWnd, struct MagScrollText *txt)
 
 static BOOL _drawTextScroll(struct Window *scrWnd, struct MagScrollText *txt)
 {
-	WORD dx=0,sx=0,w=0,i=0;
+	WORD dx=0,sx=0,w=0,i=0,j=0;
 	
 	WaitBlit();
 	// Blit in the background
 	//BltBitMapRastPort(txt->backgnd, 0, 0, scrWnd->RPort, txt->x, txt->y,txt->width,txt->height,0x0C0);
 
-	for(i=0;i<=1;i++){
+	for(i=0;i<MAX_SCROLL_TEXT_BUFFERS;i++){
 		dx=sx=w=0;
-		// Set destination of bitblt
-		if (txt->xoff[i] >= 0){
-			dx = txt->x + txt->xoff[i];
-			w = txt->width - txt->xoff[i];
-		}else{
-			dx = txt->x;
-			w = txt->width + txt->xoff[i];
-			sx = -(txt->xoff[i]);
-		}
 		
-		BltBitMapRastPort(txt->textRastPort.BitMap, sx, i * txt->height, scrWnd->RPort, dx, txt->y,w,txt->height,0x0C0);
-		//BltBitMapRastPort(txt->textRastPort.BitMap, 0, 0, scrWnd->RPort, txt->x, txt->y,txt->width,txt->height,0xC0);
-	
-		txt->xoff[i] -= txt->speed;
-		if (txt->xoff[i] < (-txt->width)){ // completed full scroll
-			txt->xoff[i] = txt->width; // reset to right side of scroll area
-			_fillTextRastPort(txt,i); // add new text
+		if (txt->active[i]){
+			// Set destination of bitblt
+			if (txt->xoff[i] >= 0){
+				dx = txt->x + txt->xoff[i];
+				w = txt->width - txt->xoff[i];
+				if (w > txt->actual_width[i]){
+					w = txt->actual_width[i];
+				}
+			}else{
+				dx = txt->x;
+				w = txt->actual_width[i] + txt->xoff[i];
+				sx = -(txt->xoff[i]);
+			}
+			
+			BltBitMapRastPort(txt->textRastPort.BitMap, sx, i * txt->height, scrWnd->RPort, dx, txt->y,w,txt->height,0x0C0);
+		
+			j=i+1;
+			if (j>=MAX_SCROLL_TEXT_BUFFERS){j=0;} // Next buffer
+			
+			if ((w == txt->actual_width[i] || txt->xoff[i] < 0) && txt->active[j] == FALSE){
+				
+				_fillTextRastPort(txt,j); // add new text
+				txt->active[j] = TRUE ;
+				if (j == 0){
+					txt->xoff[j] -= txt->speed;
+				}
+			}
+			txt->xoff[i] -= txt->speed;
+			if (txt->xoff[i] < (-txt->actual_width[i])){ // completed full scroll
+				txt->xoff[i] = txt->width; // reset to right side of scroll area
+				txt->active[i] = FALSE ;
+			}
 		}
 	}
 	
