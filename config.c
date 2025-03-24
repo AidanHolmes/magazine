@@ -8,39 +8,6 @@
 //
 // Private functions
 //
-#define _conftoupper(x) ((x >= 'a' && x <= 'z')?x-32:x)
-BOOL magstricmp(char *a, char *b, UWORD max)
-{
-	UWORD i = 0;
-	
-	for(;i< (max-1) && a[i] != '\0';i++){
-		if (_conftoupper(a[i]) != _conftoupper(b[i])){
-			return FALSE ;
-		}
-	}
-	if (a[i] == '\0' && b[i] == '\0'){
-		return TRUE;
-	}
-	return FALSE;
-}
-
-UWORD magatouw(struct MagValue *v, UWORD defVal)
-{
-	UWORD val = 0;
-	char *s = NULL ;
-	
-	if (!v) return defVal;
-	
-    for(s=v->szValue; *s; s++){
-        if ((*s >= '0') && (*s <= '9')) {
-            val *= 10;
-            val += (*s - '0');
-        }else{
-			return defVal;
-		}
-    }
-    return val;
-}
 
 void _addValueHead(struct MagParameter *p, struct MagValue *v)
 {
@@ -457,6 +424,39 @@ UWORD _parseSection(struct MagConfig *config, char c)
 //
 // Public functions
 //
+#define _conftoupper(x) ((x >= 'a' && x <= 'z')?x-32:x)
+BOOL magstricmp(char *a, char *b, UWORD max)
+{
+	UWORD i = 0;
+	
+	for(;i< (max-1) && a[i] != '\0';i++){
+		if (_conftoupper(a[i]) != _conftoupper(b[i])){
+			return FALSE ;
+		}
+	}
+	if (a[i] == '\0' && b[i] == '\0'){
+		return TRUE;
+	}
+	return FALSE;
+}
+
+UWORD magatouw(struct MagValue *v, UWORD defVal)
+{
+	UWORD val = 0;
+	char *s = NULL ;
+	
+	if (!v) return defVal;
+	
+    for(s=v->szValue; *s; s++){
+        if ((*s >= '0') && (*s <= '9')) {
+            val *= 10;
+            val += (*s - '0');
+        }else{
+			return defVal;
+		}
+    }
+    return val;
+}
 
 void magInitialiseBuff(struct MagConfig *config, char *buffer, ULONG len)
 {
@@ -595,30 +595,6 @@ struct MagValue* findValue(char *szName, struct MagParameter *parameter)
 	}
 	return NULL ;
 }
-
-/*
-void _combineParams(struct MagSection *s)
-{
-	struct MagObject *o, *p;
-	struct MagValue *v;
-	for (o=s->firstObject;o;o=o->next){
-		if (o->type == MAG_OBJECT_PARAMETER){
-			for (p=o->next;p;p=p->next){
-				if (p->type == MAG_OBJECT_PARAMETER && magstricmp(((struct MagParameter*)o)->szSectionID, ((struct MagParameter*)p)->szSectionID, MAG_MAX_SECTION_NAME)){
-					for (v=getLastValue(p); v; v=v->prev){
-						_addValueHead((struct MagParameter*)o, v);
-					}
-					_deleteObject(p);
-					p = o->next;
-					if (!p){
-						break;
-					}
-				}
-			}
-		}
-	}
-}
-*/
 
 UWORD parseConfig(struct MagConfig *config, mag_object_callback fn_callback)
 {

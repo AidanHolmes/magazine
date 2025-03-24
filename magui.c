@@ -14,7 +14,7 @@
 #define APP_WIDTH 640
 #define APP_HEIGHT 512
 
-const char __ver[] = "$VER: Mag Reader 1.2.1 (22.03.2025)";
+const char __ver[] = "$VER: Mag Reader 1.2.2 (24.03.2025)";
 
 static struct TextAttr _topaz8 = {
    (STRPTR)"topaz.font", 8, 0, 1

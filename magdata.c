@@ -41,7 +41,7 @@ struct MagScrollText* _getLastScrollText(struct MagPage *page)
 	if (!page->scrollText){
 		return NULL;
 	}
-	for(thisTxt=page->scrollText; thisTxt->next; thisTxt=thisTxt->next);
+	for(thisTxt=page->scrollText; thisTxt->next; thisTxt=(struct MagScrollText *)thisTxt->next);
 	
 	return thisTxt;
 }
@@ -290,7 +290,6 @@ void cleanUpMagData(struct IFFMagazineData *iff)
 }
 
 struct MagScrollText *addScrollText(struct MagUIData *uidata, struct MagScrollText *scrl)
-//struct MagScrollText *addScrollText(struct MagUIData *uidata, char *txt, UWORD len, UWORD x, UWORD y, UWORD w, UWORD h, UWORD speed, UWORD pen)
 {
 	struct MagScrollText *sTxt = NULL, *attachTo = NULL;
 	struct MagPage *page = NULL ;
@@ -310,28 +309,28 @@ struct MagScrollText *addScrollText(struct MagUIData *uidata, struct MagScrollTe
 		}
 
 		*sTxt = *scrl ; // shallow copy
-		sTxt->page = page;
-		sTxt->txt = szTxt;
-		memcpy(szTxt, scrl->txt, scrl->length);
+		sTxt->fmtTxt.page = page;
+		sTxt->fmtTxt.txt = szTxt;
+		memcpy(szTxt, scrl->fmtTxt.txt, scrl->fmtTxt.length);
 		
 		if (uidata->data.ctx.gfxlib->lib_Version >=39){
-			sTxt->backgnd = AllocBitMap(sTxt->width,sTxt->height,uidata->maxDepth,0,uidata->appWnd->appWindow->RPort->BitMap);
+			sTxt->backgnd = AllocBitMap(sTxt->fmtTxt.width,sTxt->fmtTxt.height,uidata->maxDepth,0,uidata->appWnd->appWindow->RPort->BitMap);
 		}else{
-			sTxt->backgnd = v36AllocBitMap(sTxt->width,sTxt->height,uidata->maxDepth);
+			sTxt->backgnd = v36AllocBitMap(sTxt->fmtTxt.width,sTxt->fmtTxt.height,uidata->maxDepth);
 		}
 		if (!sTxt->backgnd){
 			goto cleanup;
 		}
 		InitRastPort(&sTxt->textRastPort);
-		if ((tf = OpenFont(&sTxt->font))){
+		if ((tf = OpenFont(&sTxt->fmtTxt.font))){
 			SetFont(&sTxt->textRastPort,tf);
-			sTxt->textFont = *tf; // shallow copy the attributes of the font - tf will close so not all values are valid
+			sTxt->fmtTxt.textFont = *tf; // shallow copy the attributes of the font - tf will close so not all values are valid
 			CloseFont(tf);
 		}
 		if (uidata->data.ctx.gfxlib->lib_Version >=39){
-			sTxt->textRastPort.BitMap = AllocBitMap(sTxt->width,sTxt->height*SCROLLTXT_BUF_MULT,uidata->maxDepth,BMF_CLEAR,uidata->appWnd->appWindow->RPort->BitMap);
+			sTxt->textRastPort.BitMap = AllocBitMap(sTxt->fmtTxt.width,sTxt->fmtTxt.height*SCROLLTXT_BUF_MULT,uidata->maxDepth,BMF_CLEAR,uidata->appWnd->appWindow->RPort->BitMap);
 		}else{
-			sTxt->textRastPort.BitMap = v36AllocBitMap(sTxt->width,sTxt->height*SCROLLTXT_BUF_MULT,uidata->maxDepth);
+			sTxt->textRastPort.BitMap = v36AllocBitMap(sTxt->fmtTxt.width,sTxt->fmtTxt.height*SCROLLTXT_BUF_MULT,uidata->maxDepth);
 		}
 
 		if(!sTxt->textRastPort.BitMap){
@@ -342,7 +341,7 @@ struct MagScrollText *addScrollText(struct MagUIData *uidata, struct MagScrollTe
 			page->scrollText = sTxt;
 		}else{
 			if (attachTo = _getLastScrollText(page)){
-				attachTo->next = sTxt;
+				attachTo->next = (struct MagFormattedText*)sTxt;
 			}
 		}
 	}
@@ -364,13 +363,13 @@ cleanup:
 				if (uidata->data.ctx.gfxlib->lib_Version >=39){
 					FreeBitMap(sTxt->textRastPort.BitMap);
 				}else{
-					v36FreeBitMap(sTxt->textRastPort.BitMap, sTxt->width, sTxt->height*SCROLLTXT_BUF_MULT);
+					v36FreeBitMap(sTxt->textRastPort.BitMap, sTxt->fmtTxt.width, sTxt->fmtTxt.height*SCROLLTXT_BUF_MULT);
 				}
 				sTxt->textRastPort.BitMap = NULL ;
 			}
-			if (sTxt->txt){
+			if (sTxt->fmtTxt.txt){
 				FreeVec(sTxt->txt);
-				sTxt->txt = NULL ;
+				sTxt->fmtTxt.txt = NULL ;
 			}
 
 			FreeVec(sTxt);
@@ -389,23 +388,23 @@ void removeAllScrollText(struct IFFMagazineData *iff, struct MagPage *page)
 			if (iff->ctx.gfxlib->lib_Version >=39){
 				FreeBitMap(txt->backgnd);
 			}else{
-				v36FreeBitMap(txt->backgnd, txt->width, txt->height);
+				v36FreeBitMap(txt->backgnd, txt->fmtTxt.width, txt->fmtTxt.height);
 			}
 			txt->backgnd = NULL;
 		}
-		if (txt->txt){
-			FreeVec(txt->txt);
-			txt->txt = NULL;
+		if (txt->fmtTxt.txt){
+			FreeVec(txt->fmtTxt.txt);
+			txt->fmtTxt.txt = NULL;
 		}
 		if (txt->textRastPort.BitMap){
 			if (iff->ctx.gfxlib->lib_Version >=39){
 				FreeBitMap(txt->textRastPort.BitMap);
 			}else{
-				v36FreeBitMap(txt->textRastPort.BitMap, txt->width, txt->height*SCROLLTXT_BUF_MULT);
+				v36FreeBitMap(txt->textRastPort.BitMap, txt->fmtTxt.width, txt->fmtTxt.height*SCROLLTXT_BUF_MULT);
 			}
 			txt->textRastPort.BitMap = NULL ;
 		}
-		tmptxt = txt->next;
+		tmptxt = (struct MagScrollText *)txt->fmtTxt.next;
 		FreeVec(txt);
 		txt = tmptxt;
 	}

@@ -165,18 +165,26 @@ cleanup:
 	return ret ;
 }
 
-static BOOL _printString(struct RastPort *rp, UWORD x, UWORD y, UWORD w, UWORD h, char *str, UWORD len)
+static BOOL _printString(struct RastPort *rp, struct MagFormattedText *txt)
 {
 	char *s, *start, *end;
 	BOOL ignoreWS = TRUE, checkLen = FALSE, forceNL = FALSE, forcePrint = FALSE;
 	struct TextExtent te ;
 	UWORD tx=0, ty=0;
+	struct TextFont *tf = NULL;
 	
-	tx = x;
-	ty = y;
+	if ((tf = OpenFont(&txt->font))){
+		SetFont(rp,tf);
+		txt->textFont = *tf; // shallow copy the attributes of the font - tf will close so not all values are valid
+		CloseFont(tf);
+	}
+	SetAPen(rp, txt->pen);
+		
+	tx = txt->x;
+	ty = txt->y;
 	Move(rp, tx, ty);
-	start = end = s = str;
-	while (s-str < len){
+	start = end = s = txt->txt;
+	while (s-txt->txt < txt->length){
 		switch(*s){
 			case '\t':
 				*s = ' ';
@@ -202,14 +210,14 @@ static BOOL _printString(struct RastPort *rp, UWORD x, UWORD y, UWORD w, UWORD h
 				}
 				break;
 		}
-		if (s-str >= len){
+		if (s-txt->txt >= txt->length){
 			forcePrint = TRUE;
 			forceNL = FALSE;
 		}
 		if (checkLen){
 			checkLen = FALSE ;
 			TextExtent(rp, start, s - start, &te);
-			if (te.te_Width >= (w-(tx-x))){ // The text needs printing and new line
+			if (te.te_Width >= (txt->width-(tx-txt->x))){ // The text needs printing and new line
 				//printf("TextExtent width %u, for str %c%c%c%c%c... tx offset %u, width %u\n", te.te_Width, *start,*(start+1),*(start+2),*(start+3),*(start+4), tx, w);
 				forcePrint = TRUE ;
 				forceNL = TRUE ;
@@ -218,7 +226,7 @@ static BOOL _printString(struct RastPort *rp, UWORD x, UWORD y, UWORD w, UWORD h
 			}
 			if (forcePrint){ // Must print now
 				forcePrint = FALSE ;
-				if (te.te_Width >= (w-(tx-x))){ // was too long so go to last end point
+				if (te.te_Width >= (txt->width-(tx-txt->x))){ // was too long so go to last end point
 					s = end;
 				}
 				if (start < s){ // is there anything to print?
@@ -230,13 +238,13 @@ static BOOL _printString(struct RastPort *rp, UWORD x, UWORD y, UWORD w, UWORD h
 				if (forceNL){
 					forceNL = FALSE;
 					ty += te.te_Height + te.te_Extent.MaxY;
-					tx = x; // Move x cursor to start of line
+					tx = txt->x; // Move x cursor to start of line
 					ignoreWS = TRUE; // clear any leading spaces
 				}
-				if (ty > (y+h)){
+				if (ty > (txt->y+txt->height)){
 					// Exceeding bounds
 					//printf("Exceed bounds y:%u h:%u, ty:%u\n", y, h, ty);
-					if (s-str < len-1){
+					if (s-txt->txt < txt->length-1){
 						return FALSE ; // Cannot print remaining chars
 					}
 					return TRUE ;
@@ -297,26 +305,28 @@ static BOOL _openPageText(struct MagUIData *uidata, struct MagText *text)
 	if (fread(textBody, text->length, 1, uidata->data.ctx.f) == 0){
 		goto cleanup;
 	}
+	// Clear MagScrollText and also use as a MagFormattedText object
+	memset(&scrlTxt,0,sizeof(struct MagScrollText));
+	scrlTxt.fmtTxt.txt = textBody;
+	scrlTxt.fmtTxt.length = text->length;
+	scrlTxt.fmtTxt.x = x;
+	scrlTxt.fmtTxt.y = y;
+	scrlTxt.fmtTxt.width = w;
+	scrlTxt.fmtTxt.height = h;
+	scrlTxt.fmtTxt.pen = pen;
+	if (mvFont){
+		scrlTxt.fmtTxt.font.ta_Name = mvFont->szValue;
+	}else{
+		scrlTxt.fmtTxt.font.ta_Name = "topaz.font";
+	}
+	scrlTxt.fmtTxt.font.ta_YSize = fontsize;
+	scrlTxt.fmtTxt.font.ta_Style = FSF_BOLD;
+	
 	if (scrollText){
-		memset(&scrlTxt,0,sizeof(struct MagScrollText));
-		scrlTxt.txt = textBody;
-		scrlTxt.length = text->length;
-		scrlTxt.x = x;
-		scrlTxt.y = y;
-		scrlTxt.width = w;
-		scrlTxt.height = h;
 		scrlTxt.speed = speed;
-		scrlTxt.pen = pen;
-		if (mvFont){
-			scrlTxt.font.ta_Name = mvFont->szValue;
-		}else{
-			scrlTxt.font.ta_Name = "topaz.font";
-		}
-		scrlTxt.font.ta_YSize = fontsize;
-		scrlTxt.font.ta_Style = FSF_BOLD;
 		_addTextScroll(uidata, &scrlTxt);
 	}else{
-		_printString(uidata->appWnd->appWindow->RPort, x, y, w, h, textBody, text->length);
+		_printString(uidata->appWnd->appWindow->RPort, (struct MagFormattedText*)&scrlTxt);
 	}
 	
 	ret = TRUE ;

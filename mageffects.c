@@ -380,7 +380,7 @@ static void _textTickEvent(struct MagUIData *uidata)
 	//GetSysTime(&now);
 	
 	// Iterate through all scroll texts on page
-	for(txt=page->scrollText;txt;txt=txt->next){
+	for(txt=page->scrollText;txt;txt=(struct MagScrollText *)txt->next){
 		if((txt->flags & SCROLL_TEXT_INIT) == 0){
 			// Create scroll text
 			_initTextScroll(uidata->appWnd->appWindow, txt);

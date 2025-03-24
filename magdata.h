@@ -11,6 +11,7 @@ enum enScrollState {SCROLL_TEXT_INIT=1};
 
 struct IFFmaggfx;
 struct MagScrollText;
+struct MagFormattedText;
 
 struct MagPage
 {
@@ -30,12 +31,10 @@ struct MagPage
 	struct MagColour highlight;
 	
 };
-
-struct MagScrollText
-{
-	struct MagPage *page;
-	struct MagScrollText *next;
 	
+struct MagFormattedText{
+	struct MagPage *page;
+	struct MagFormattedText *next;
 	// Public attributes
 	struct TextAttr font;   // Preferred font
 	char *txt; 				// The text string to use in scroller
@@ -44,13 +43,21 @@ struct MagScrollText
 	UWORD y;				// Y Position on the screen
 	UWORD height; 			// Height of the scroller. Should be at least height of text
 	UWORD width;			// Width of the scroller
-	UWORD speed;			// Speed in pixels for each 'tick' cycle
 	UWORD pen;				// Index of pen to use for text
+	
+	// Private attributes
+	struct TextFont textFont;
+};
+
+struct MagScrollText
+{
+	struct MagFormattedText fmtTxt;
+	// Public attributes
+	UWORD speed;			// Speed in pixels for each 'tick' cycle
 	
 	// Private attributes
 	UWORD charoffset ; // scroll offset in txt buffer
 	UWORD flags;
-	struct TextFont textFont;
 	struct BitMap *backgnd; // original image background for blits
 	struct RastPort textRastPort;
 	UWORD actual_width[MAX_SCROLL_TEXT_BUFFERS];
