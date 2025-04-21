@@ -351,12 +351,25 @@ exitcleanup:
 	return 0;
 }
 
-BOOL magRegisterTick(struct MagUIData *uidata, magTickCallback fn)
+BOOL magRegisterTick(struct MagUIData *uidata, magTickCallback fn, BOOL last)
 {
-	UBYTE i = 0;
-	for (;i<MAG_MAX_TICK_CALLBACK;i++){
-		if (uidata->tick_fn[i] == NULL){
-			uidata->tick_fn[i] = fn;
+	UBYTE i = 0, index = 0;
+
+	// Check if already registered
+	for (i=0;i<MAG_MAX_TICK_CALLBACK;i++){
+		if (uidata->tick_fn[i] == fn){
+			return TRUE ;
+		}
+	}
+	
+	for (i=0;i<MAG_MAX_TICK_CALLBACK;i++){
+		if (last){
+			index = MAG_MAX_TICK_CALLBACK - i - 1;
+		}else{
+			index = i;
+		}
+		if (uidata->tick_fn[index] == NULL){
+			uidata->tick_fn[index] = fn;
 			return TRUE;
 		}
 	}
@@ -368,9 +381,9 @@ void magUnregisterTick(struct MagUIData *uidata, magTickCallback fn)
 {
 	UBYTE i = 0;
 	for (;i<MAG_MAX_TICK_CALLBACK;i++){
+		// unregister all instances
 		if (uidata->tick_fn[i] == fn){
 			uidata->tick_fn[i] = NULL;
-			break;
 		}
 	}
 }

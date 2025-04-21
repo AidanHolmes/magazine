@@ -155,11 +155,8 @@ static void _snowTickEvent(struct MagUIData *uidata)
 {
 	UWORD i = 0;
 	LONG elapsed = 0;
-	struct Window *wnd = NULL;
 	struct timeval now, diff;
 	struct Device *TimerBase = uidata->appWnd->app->tmr->io_Device;
-
-	wnd = uidata->appWnd->appWindow;
 	
 	GetSysTime(&now);
 	
@@ -195,6 +192,15 @@ static void _snowTickEvent(struct MagUIData *uidata)
 			}					
 		}
 	}
+	
+}
+
+static void _doDoubleBuffer(struct MagUIData *uidata)
+{
+	struct Window *wnd = NULL;
+	
+	wnd = uidata->appWnd->appWindow;
+	
 	SortGList(wnd->RPort);
 	if (uidata->dbufBitmaps){
 		wnd->WScreen->ViewPort.RasInfo->BitMap = &uidata->dbufBitmaps[uidata->dbufActive];
@@ -250,13 +256,10 @@ static void _effectsSetupSnow(struct MagUIData *uidata)
 			return;
 		}
 	}
-	if (uidata->dbufBitmaps){
-		BltBitMap(&uidata->dbufBitmaps[uidata->dbufActive], 0, 0, 
-					&uidata->dbufBitmaps[uidata->dbufActive ^ 1], 0,0,640,512,0xC0,0xFF,0);
-	}
-	magRegisterTick(uidata, _snowTickEvent);
-}
 
+	magRegisterTick(uidata, _snowTickEvent, FALSE);
+	magRegisterTick(uidata, _doDoubleBuffer, TRUE);
+}
 
 static UWORD _fillTextRastPort(struct MagScrollText *txt, UWORD bufferNo)
 {
@@ -313,13 +316,13 @@ static BOOL _initTextScroll(struct Window *scrWnd, struct MagScrollText *txt)
 	return TRUE ;
 }
 
-static BOOL _drawTextScroll(struct Window *scrWnd, struct MagScrollText *txt)
+static BOOL _drawTextScroll(struct MagUIData *uidata, struct MagScrollText *txt)
 {
 	WORD dx=0,sx=0,w=0,i=0,j=0;
 	
 	WaitBlit();
 	// Blit in the background
-	//BltBitMapRastPort(txt->backgnd, 0, 0, scrWnd->RPort, txt->x, txt->y,txt->width,txt->height,0x0C0);
+	//BltBitMapRastPort(txt->backgnd, 0, 0, uidata->appWnd->appWindow->RPort, txt->x, txt->y,txt->width,txt->height,0x0C0);
 
 	for(i=0;i<MAX_SCROLL_TEXT_BUFFERS;i++){
 		dx=sx=w=0;
@@ -337,9 +340,14 @@ static BOOL _drawTextScroll(struct Window *scrWnd, struct MagScrollText *txt)
 				w = txt->actual_width[i] + txt->xoff[i];
 				sx = -(txt->xoff[i]);
 			}
+			if (uidata->dbufBitmaps){
+				// If running with double buffering then blit to back buffer
+				BltBitMap(txt->textRastPort.BitMap, sx, i * txt->height, 
+							&uidata->dbufBitmaps[uidata->dbufActive], dx,txt->y,w,txt->height,0x0C0,0xFF,0);
+			}else{
+				BltBitMapRastPort(txt->textRastPort.BitMap, sx, i * txt->height, uidata->appWnd->appWindow->RPort, dx, txt->y,w,txt->height,0x0C0);
+			}
 			
-			BltBitMapRastPort(txt->textRastPort.BitMap, sx, i * txt->height, scrWnd->RPort, dx, txt->y,w,txt->height,0x0C0);
-		
 			j=i+1;
 			if (j>=MAX_SCROLL_TEXT_BUFFERS){j=0;} // Next buffer
 			
@@ -386,12 +394,13 @@ static void _textTickEvent(struct MagUIData *uidata)
 			_initTextScroll(uidata->appWnd->appWindow, txt);
 		}else{
 			// initialised
-			_drawTextScroll(uidata->appWnd->appWindow, txt);
+			_drawTextScroll(uidata, txt);
 		}
 	}
 }
 
 static void _effectsSetupTextScroll(struct MagUIData *uidata)
 {
-	magRegisterTick(uidata, _textTickEvent);
+	magRegisterTick(uidata, _textTickEvent, FALSE);
+	magRegisterTick(uidata, _doDoubleBuffer, TRUE);
 }

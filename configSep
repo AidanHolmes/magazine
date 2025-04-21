@@ -1,0 +1,21 @@
+[MAG AUTH="Aidan Holmes" TITLE="RHAG Sep Magazine"]
+[MAG COPYRIGHT=2024]
+{
+	[PAGE REF=main BG1=0055AA SHAD1=000034 PEN1=FFFFFF HIGH1=FF8800]
+	[IMAGE FILE=images/group1.iff X=50 Y=0 NAME=grp1 WIDTH=20 HEIGHT=30]
+	[TEXT X=50 Y=150 WIDTH=200 HEIGHT=100]
+	Text just appears without property tags. Initial whitespace ignored. 
+	Newlines processed as expected. If new TEXT property appears then text reprocessed in new IFF chunk.
+	[IMAGE FILE=images/dread.iff X=50 Y=300 NAME=dread]
+	[BUTTON NAME=Next NAVTO=page1 X=565 Y=450 WIDTH=60 HEIGHT=25]
+	[BUTTON NAME=Exit ACTION=exit X=565 Y=0 WIDTH=60 HEIGHT=25]
+}
+
+{
+	[PAGE REF=page1 BG1=0055AA SHAD1=000034 PEN1=FFFFFF HIGH1=FF8800]
+	[IMAGE FILE="images/a4000.iff" X=50 Y=100 NAME="A4000" WIDTH=20 HEIGHT=30]
+	[TEXT X=50 Y=5 WIDTH=100 HEIGHT=100]
+	Second page of text.
+	[BUTTON NAME=Home NAVTO=main X=565 Y=450 WIDTH=60 HEIGHT=25]
+	[BUTTON NAME=Exit ACTION=exit X=565 Y=0 WIDTH=60 HEIGHT=25]
+}

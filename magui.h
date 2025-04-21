@@ -52,7 +52,7 @@ struct MagUIData
 	BOOL modHasInit;
 };
 
-BOOL magRegisterTick(struct MagUIData *uidata, magTickCallback fn);
+BOOL magRegisterTick(struct MagUIData *uidata, magTickCallback fn, BOOL last);
 void magUnregisterTick(struct MagUIData *uidata, magTickCallback fn);
 void magUnregisterAllTicks(struct MagUIData *uidata);
 

@@ -593,6 +593,12 @@ BOOL uiOpenPage(struct MagUIData *uidata, char *szPageRef)
 		}
 	}
 	
+	// Setup a copy to both buffers for effects
+	if (uidata->dbufBitmaps){
+		BltBitMap(&uidata->dbufBitmaps[uidata->dbufActive], 0, 0, 
+					&uidata->dbufBitmaps[uidata->dbufActive ^ 1], 0,0,640,512,0xC0,0xFF,0);
+	}
+	
 	if (IntuitionBase->LibNode.lib_Version >=39){
 		SetWindowPointer(uidata->appWnd->appWindow, WA_BusyPointer, FALSE);
 	}
